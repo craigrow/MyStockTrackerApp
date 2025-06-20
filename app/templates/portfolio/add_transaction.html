@@ -10,10 +10,87 @@
                 <h5 class="card-title mb-0">Add Transaction</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">Transaction form coming soon...</p>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="portfolio_id" class="form-label">Portfolio</label>
+                            <select class="form-select" id="portfolio_id" name="portfolio_id" required>
+                                <option value="">Select Portfolio</option>
+                                {% for portfolio in portfolios %}
+                                    <option value="{{ portfolio.id }}" {{ 'selected' if portfolio.id == current_portfolio_id else '' }}>
+                                        {{ portfolio.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="ticker" class="form-label">Stock Ticker</label>
+                            <input type="text" class="form-control" id="ticker" name="ticker" placeholder="AAPL" style="text-transform: uppercase" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="transaction_type" class="form-label">Transaction Type</label>
+                            <select class="form-select" id="transaction_type" name="transaction_type" required>
+                                <option value="">Select Type</option>
+                                <option value="BUY">Buy</option>
+                                <option value="SELL">Sell</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date" class="form-label">Transaction Date</label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="price_per_share" class="form-label">Price per Share ($)</label>
+                            <input type="number" class="form-control" id="price_per_share" name="price_per_share" step="0.01" min="0.01" placeholder="150.00" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="shares" class="form-label">Number of Shares</label>
+                            <input type="number" class="form-control" id="shares" name="shares" step="0.001" min="0.001" placeholder="10.0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Total Value</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="text" class="form-control" id="total_value" readonly>
+                        </div>
+                        <div class="form-text">Calculated automatically</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Add Transaction</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-calculate total value
+function calculateTotal() {
+    const price = parseFloat(document.getElementById('price_per_share').value) || 0;
+    const shares = parseFloat(document.getElementById('shares').value) || 0;
+    const total = price * shares;
+    document.getElementById('total_value').value = total.toFixed(2);
+}
+
+document.getElementById('price_per_share').addEventListener('input', calculateTotal);
+document.getElementById('shares').addEventListener('input', calculateTotal);
+
+// Auto-uppercase ticker
+document.getElementById('ticker').addEventListener('input', function(e) {
+    e.target.value = e.target.value.toUpperCase();
+});
+</script>
 {% endblock %}
