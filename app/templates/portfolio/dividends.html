@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Dividends - MyStockTracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Dividends</h1>
+    <a href="{{ url_for('portfolio.add_dividend') }}" class="btn btn-success">
+        <i class="fas fa-plus me-2"></i>Add Dividend
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted">Dividend list coming soon...</p>
+    </div>
+</div>
+{% endblock %}
