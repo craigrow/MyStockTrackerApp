@@ -118,3 +118,6 @@ class PortfolioService:
     def get_cash_balance(self, portfolio_id):
         cash_balance = CashBalance.query.get(portfolio_id)
         return cash_balance.balance if cash_balance else 0.0
+    
+    def get_all_portfolios(self):
+        return Portfolio.query.all()

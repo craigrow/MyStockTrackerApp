@@ -38,22 +38,33 @@ class TestPortfolioService:
             assert portfolio.user_id == "test_user"
             assert portfolio.id is not None
 
-    def test_get_portfolio(self, portfolio_service, sample_portfolio, app):
+    def test_get_portfolio(self, portfolio_service, app):
         with app.app_context():
-            retrieved = portfolio_service.get_portfolio(sample_portfolio.id)
+            # Create portfolio within the test
+            portfolio = portfolio_service.create_portfolio(
+                name="Test Portfolio",
+                user_id="test_user"
+            )
             
-            assert retrieved.id == sample_portfolio.id
-            assert retrieved.name == sample_portfolio.name
+            retrieved = portfolio_service.get_portfolio(portfolio.id)
+            
+            assert retrieved.id == portfolio.id
+            assert retrieved.name == portfolio.name
 
     def test_get_portfolio_not_found(self, portfolio_service, app):
         with app.app_context():
             result = portfolio_service.get_portfolio("nonexistent_id")
             assert result is None
 
-    def test_add_transaction(self, portfolio_service, sample_portfolio, app):
+    def test_add_transaction(self, portfolio_service, app):
         with app.app_context():
+            portfolio = portfolio_service.create_portfolio(
+                name="Test Portfolio",
+                user_id="test_user"
+            )
+            
             transaction = portfolio_service.add_transaction(
-                portfolio_id=sample_portfolio.id,
+                portfolio_id=portfolio.id,
                 ticker="AAPL",
                 transaction_type="BUY",
                 date=date.today(),

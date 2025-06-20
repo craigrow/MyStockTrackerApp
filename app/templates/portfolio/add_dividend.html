@@ -10,10 +10,52 @@
                 <h5 class="card-title mb-0">Add Dividend</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">Dividend form coming soon...</p>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="portfolio_id" class="form-label">Portfolio</label>
+                            <select class="form-select" id="portfolio_id" name="portfolio_id" required>
+                                <option value="">Select Portfolio</option>
+                                {% for portfolio in portfolios %}
+                                    <option value="{{ portfolio.id }}" {{ 'selected' if portfolio.id == current_portfolio_id else '' }}>
+                                        {{ portfolio.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="ticker" class="form-label">Stock Ticker</label>
+                            <input type="text" class="form-control" id="ticker" name="ticker" placeholder="AAPL" style="text-transform: uppercase" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="payment_date" class="form-label">Payment Date</label>
+                            <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ today }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="total_amount" class="form-label">Total Amount ($)</label>
+                            <input type="number" class="form-control" id="total_amount" name="total_amount" step="0.01" min="0.01" placeholder="25.50" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-success">Add Dividend</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-uppercase ticker
+document.getElementById('ticker').addEventListener('input', function(e) {
+    e.target.value = e.target.value.toUpperCase();
+});
+</script>
 {% endblock %}

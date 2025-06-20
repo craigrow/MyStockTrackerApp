@@ -93,9 +93,56 @@ def add_transaction():
                          current_portfolio_id=current_portfolio_id,
                          today=date.today().isoformat())
 
-@portfolio_blueprint.route('/add-dividend')
+@portfolio_blueprint.route('/add-dividend', methods=['GET', 'POST'])
 def add_dividend():
-    return render_template('portfolio/add_dividend.html')
+    portfolio_service = PortfolioService()
+    portfolios = portfolio_service.get_all_portfolios()
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            portfolio_id = request.form['portfolio_id']
+            ticker = request.form['ticker'].upper().strip()
+            payment_date = datetime.strptime(request.form['payment_date'], '%Y-%m-%d').date()
+            total_amount = float(request.form['total_amount'])
+            
+            # Validate data
+            if not portfolio_id or not ticker:
+                flash('All fields are required.', 'error')
+                return render_template('portfolio/add_dividend.html', 
+                                     portfolios=portfolios, 
+                                     current_portfolio_id=portfolio_id,
+                                     today=date.today().isoformat())
+            
+            if total_amount <= 0:
+                flash('Dividend amount must be positive.', 'error')
+                return render_template('portfolio/add_dividend.html', 
+                                     portfolios=portfolios, 
+                                     current_portfolio_id=portfolio_id,
+                                     today=date.today().isoformat())
+            
+            # Add dividend
+            dividend = portfolio_service.add_dividend(
+                portfolio_id=portfolio_id,
+                ticker=ticker,
+                payment_date=payment_date,
+                total_amount=total_amount
+            )
+            
+            flash(f'Dividend added successfully: ${total_amount:.2f} from {ticker}', 'success')
+            return redirect(url_for('main.dashboard', portfolio_id=portfolio_id))
+            
+        except ValueError as e:
+            flash('Invalid number format. Please check your inputs.', 'error')
+        except Exception as e:
+            flash(f'Error adding dividend: {str(e)}', 'error')
+    
+    # GET request or form error
+    current_portfolio_id = request.args.get('portfolio_id')
+    return render_template('portfolio/add_dividend.html', 
+                         portfolios=portfolios, 
+                         current_portfolio_id=current_portfolio_id,
+                         today=date.today().isoformat())
 
 @portfolio_blueprint.route('/import-csv')
 def import_csv():

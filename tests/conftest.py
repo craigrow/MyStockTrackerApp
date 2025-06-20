@@ -91,6 +91,8 @@ def sample_portfolio(app, sample_user_id):
         )
         db.session.add(portfolio)
         db.session.commit()
+        # Refresh to avoid detached instance issues
+        db.session.refresh(portfolio)
         return portfolio
 
 
