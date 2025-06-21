@@ -258,10 +258,14 @@ class TestPriceService:
     def test_get_current_price_from_api(self, mock_ticker, price_service, app):
         with app.app_context():
             # Mock yfinance response
+            mock_hist = Mock()
+            mock_hist.empty = False
+            mock_hist.__len__ = Mock(return_value=1)
+            mock_hist.iloc = Mock()
+            mock_hist.iloc.__getitem__ = Mock(return_value={'Close': 155.00})
+            
             mock_ticker_instance = Mock()
-            mock_ticker_instance.history.return_value = Mock()
-            mock_ticker_instance.history.return_value.iloc = [Mock()]
-            mock_ticker_instance.history.return_value.iloc[-1] = {'Close': 155.00}
+            mock_ticker_instance.history.return_value = mock_hist
             mock_ticker.return_value = mock_ticker_instance
             
             price = price_service.get_current_price("AAPL")
@@ -335,19 +339,15 @@ class TestPriceService:
     @patch('yfinance.Ticker')
     def test_fetch_from_api_with_retry(self, mock_ticker, price_service, app):
         with app.app_context():
-            # Mock API failure then success
-            mock_ticker_instance = Mock()
-            mock_ticker_instance.history.side_effect = [
-                Exception("API Error"),  # First call fails
-                Mock()  # Second call succeeds
-            ]
-            
             # Mock successful response
-            mock_response = Mock()
-            mock_response.iloc = [Mock()]
-            mock_response.iloc[-1] = {'Close': 155.00}
-            mock_ticker_instance.history.side_effect[1] = mock_response
+            mock_hist = Mock()
+            mock_hist.empty = False
+            mock_hist.__len__ = Mock(return_value=1)
+            mock_hist.iloc = Mock()
+            mock_hist.iloc.__getitem__ = Mock(return_value={'Close': 155.00})
             
+            mock_ticker_instance = Mock()
+            mock_ticker_instance.history.return_value = mock_hist
             mock_ticker.return_value = mock_ticker_instance
             
             price = price_service.fetch_from_api("AAPL")

@@ -23,13 +23,7 @@ class TestPortfolioIntegration:
         with app.app_context():
             return PriceService()
     
-    @pytest.fixture
-    def sample_portfolio(self, app):
-        with app.app_context():
-            portfolio = Portfolio(name="Integration Test Portfolio", user_id="test_user")
-            db.session.add(portfolio)
-            db.session.commit()
-            return portfolio
+
 
     def test_complete_investment_workflow(self, portfolio_service, price_service, sample_portfolio, app):
         """Test complete workflow: buy stock, receive dividend, calculate performance."""
@@ -267,13 +261,7 @@ class TestDataLoaderIntegration:
         with app.app_context():
             return PortfolioService()
     
-    @pytest.fixture
-    def sample_portfolio(self, app):
-        with app.app_context():
-            portfolio = Portfolio(name="Data Test Portfolio", user_id="test_user")
-            db.session.add(portfolio)
-            db.session.commit()
-            return portfolio
+
 
     def test_csv_import_export_roundtrip(self, data_loader, sample_portfolio, app):
         """Test importing data from CSV and then exporting it back."""
@@ -428,10 +416,14 @@ class TestPriceServiceIntegration:
             db.session.commit()
             
             # Mock API response
+            mock_hist = Mock()
+            mock_hist.empty = False
+            mock_hist.__len__ = Mock(return_value=1)
+            mock_hist.iloc = Mock()
+            mock_hist.iloc.__getitem__ = Mock(return_value={'Close': 155.00})
+            
             mock_ticker_instance = Mock()
-            mock_ticker_instance.history.return_value = Mock()
-            mock_ticker_instance.history.return_value.iloc = [Mock()]
-            mock_ticker_instance.history.return_value.iloc[-1] = {'Close': 155.00}
+            mock_ticker_instance.history.return_value = mock_hist
             mock_ticker.return_value = mock_ticker_instance
             
             # Should fetch from API due to stale cache
