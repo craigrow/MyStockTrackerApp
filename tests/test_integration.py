@@ -137,7 +137,10 @@ class TestPortfolioIntegration:
             assert holdings["AAPL"] == 6.0  # 10 - 4 = 6 shares remaining
             
             # Mock current price and calculate remaining position value
-            with patch.object(price_service, 'get_current_price', return_value=170.00):
+            with patch('app.services.price_service.PriceService') as mock_price_service_class:
+                mock_price_service_instance = mock_price_service_class.return_value
+                mock_price_service_instance.get_current_price.return_value = 170.00
+                
                 portfolio_value = portfolio_service.calculate_portfolio_value(sample_portfolio.id)
                 assert portfolio_value == 1020.00  # 6 shares * $170
 
@@ -159,7 +162,10 @@ class TestPortfolioIntegration:
             assert transaction.total_value == 1549.95  # 10.333 * 150
             
             # Calculate value with fractional shares
-            with patch.object(price_service, 'get_current_price', return_value=160.00):
+            with patch('app.services.price_service.PriceService') as mock_price_service_class:
+                mock_price_service_instance = mock_price_service_class.return_value
+                mock_price_service_instance.get_current_price.return_value = 160.00
+                
                 portfolio_value = portfolio_service.calculate_portfolio_value(sample_portfolio.id)
                 expected_value = 10.333 * 160.00
                 assert abs(portfolio_value - expected_value) < 0.01
