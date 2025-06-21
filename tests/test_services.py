@@ -17,14 +17,6 @@ class TestPortfolioService:
         with app.app_context():
             return PortfolioService()
 
-    @pytest.fixture
-    def sample_portfolio(self, app):
-        with app.app_context():
-            portfolio = Portfolio(name="Test Portfolio", user_id="test_user")
-            db.session.add(portfolio)
-            db.session.commit()
-            return portfolio
-
     def test_create_portfolio(self, portfolio_service, app):
         with app.app_context():
             portfolio = portfolio_service.create_portfolio(
@@ -406,14 +398,6 @@ class TestDataLoader:
     def data_loader(self, app):
         with app.app_context():
             return DataLoader()
-
-    @pytest.fixture
-    def sample_portfolio(self, app):
-        with app.app_context():
-            portfolio = Portfolio(name="Test Portfolio", user_id="test_user")
-            db.session.add(portfolio)
-            db.session.commit()
-            return portfolio
 
     def test_import_transactions_from_csv(self, data_loader, sample_portfolio, app):
         with app.app_context():

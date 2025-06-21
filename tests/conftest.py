@@ -81,8 +81,8 @@ def sample_etf_stock(app):
 
 
 @pytest.fixture
-def sample_portfolio(app, sample_user_id):
-    """Create a sample portfolio for testing."""
+def sample_portfolio_id(app, sample_user_id):
+    """Create a sample portfolio and return its ID for testing."""
     with app.app_context():
         portfolio = Portfolio(
             name="Test Portfolio",
@@ -91,9 +91,17 @@ def sample_portfolio(app, sample_user_id):
         )
         db.session.add(portfolio)
         db.session.commit()
-        # Refresh to avoid detached instance issues
-        db.session.refresh(portfolio)
-        return portfolio
+        return portfolio.id
+
+@pytest.fixture
+def sample_portfolio(sample_portfolio_id):
+    """Return portfolio ID for backward compatibility."""
+    # Create a simple object that has an id attribute
+    class PortfolioProxy:
+        def __init__(self, portfolio_id):
+            self.id = portfolio_id
+    
+    return PortfolioProxy(sample_portfolio_id)
 
 
 @pytest.fixture
