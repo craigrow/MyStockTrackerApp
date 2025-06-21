@@ -1,10 +1,12 @@
 import pytest
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from app.models.stock import Stock
 from app.models.portfolio import Portfolio, StockTransaction, Dividend, CashBalance
 from app.models.price import PriceHistory
+from app.models.cache import PortfolioCache
 from app import db
+import json
 
 
 class TestStock:
@@ -379,3 +381,135 @@ class TestPriceHistory:
             
             assert intraday_price.is_intraday is True
             assert closing_price.is_intraday is False
+
+
+class TestPortfolioCache:
+    def test_cache_creation(self, app):
+        with app.app_context():
+            portfolio = Portfolio(name="Test Portfolio", user_id="test_user")
+            db.session.add(portfolio)
+            db.session.commit()
+            
+            cache = PortfolioCache(
+                id="test-cache-id",
+                portfolio_id=portfolio.id,
+                cache_type="stats",
+                market_date=date.today()
+            )
+            test_data = {"current_value": 10000.0, "total_gain_loss": 500.0}
+            cache.set_data(test_data)
+            
+            db.session.add(cache)
+            db.session.commit()
+            
+            assert cache.portfolio_id == portfolio.id
+            assert cache.cache_type == "stats"
+            assert cache.market_date == date.today()
+            assert cache.created_at is not None
+
+    def test_cache_data_serialization(self, app):
+        with app.app_context():
+            portfolio = Portfolio(name="Test Portfolio", user_id="test_user")
+            db.session.add(portfolio)
+            db.session.commit()
+            
+            cache = PortfolioCache(
+                id="test-cache-id",
+                portfolio_id=portfolio.id,
+                cache_type="chart_data",
+                market_date=date.today()
+            )
+            
+            test_data = {
+                "dates": ["2024-01-01", "2024-01-02"],
+                "portfolio_values": [10000.0, 10500.0],
+                "voo_values": [9800.0, 10200.0]
+            }
+            
+            cache.set_data(test_data)
+            db.session.add(cache)
+            db.session.commit()
+            
+            # Retrieve and verify data
+            retrieved_cache = PortfolioCache.query.filter_by(id="test-cache-id").first()
+            retrieved_data = retrieved_cache.get_data()
+            
+            assert retrieved_data["dates"] == ["2024-01-01", "2024-01-02"]
+            assert retrieved_data["portfolio_values"] == [10000.0, 10500.0]
+            assert retrieved_data["voo_values"] == [9800.0, 10200.0]
+
+    def test_cache_type_filtering(self, app):
+        with app.app_context():
+            portfolio = Portfolio(name="Test Portfolio", user_id="test_user")
+            db.session.add(portfolio)
+            db.session.commit()
+            
+            stats_cache = PortfolioCache(
+                id="stats-cache",
+                portfolio_id=portfolio.id,
+                cache_type="stats",
+                market_date=date.today()
+            )
+            stats_cache.set_data({"current_value": 10000.0})
+            
+            chart_cache = PortfolioCache(
+                id="chart-cache",
+                portfolio_id=portfolio.id,
+                cache_type="chart_data",
+                market_date=date.today()
+            )
+            chart_cache.set_data({"dates": ["2024-01-01"]})
+            
+            db.session.add_all([stats_cache, chart_cache])
+            db.session.commit()
+            
+            # Query by cache type
+            stats_result = PortfolioCache.query.filter_by(
+                portfolio_id=portfolio.id,
+                cache_type="stats"
+            ).first()
+            
+            chart_result = PortfolioCache.query.filter_by(
+                portfolio_id=portfolio.id,
+                cache_type="chart_data"
+            ).first()
+            
+            assert stats_result.cache_type == "stats"
+            assert chart_result.cache_type == "chart_data"
+            assert stats_result.get_data()["current_value"] == 10000.0
+            assert chart_result.get_data()["dates"] == ["2024-01-01"]
+
+    def test_cache_market_date_filtering(self, app):
+        with app.app_context():
+            portfolio = Portfolio(name="Test Portfolio", user_id="test_user")
+            db.session.add(portfolio)
+            db.session.commit()
+            
+            today_cache = PortfolioCache(
+                id="today-cache",
+                portfolio_id=portfolio.id,
+                cache_type="stats",
+                market_date=date.today()
+            )
+            today_cache.set_data({"current_value": 10000.0})
+            
+            yesterday_cache = PortfolioCache(
+                id="yesterday-cache",
+                portfolio_id=portfolio.id,
+                cache_type="stats",
+                market_date=date.today() - timedelta(days=1)
+            )
+            yesterday_cache.set_data({"current_value": 9500.0})
+            
+            db.session.add_all([today_cache, yesterday_cache])
+            db.session.commit()
+            
+            # Query by market date
+            today_result = PortfolioCache.query.filter_by(
+                portfolio_id=portfolio.id,
+                cache_type="stats",
+                market_date=date.today()
+            ).first()
+            
+            assert today_result.market_date == date.today()
+            assert today_result.get_data()["current_value"] == 10000.0

@@ -32,8 +32,8 @@
                     <div class="d-flex flex-column">
                         <h6 class="card-title mb-2">Portfolio Value</h6>
                         <h4 class="mb-1">${{ "{:,.2f}".format(portfolio_stats.current_value) }}</h4>
-                        <small class="text-light">VOO: ${{ "{:,.2f}".format(portfolio_stats.voo_equivalent) }} (${{ "{:+,.2f}".format(portfolio_stats.current_value - portfolio_stats.voo_equivalent) }})</small>
-                        <small class="text-light">QQQ: ${{ "{:,.2f}".format(portfolio_stats.qqq_equivalent) }} (${{ "{:+,.2f}".format(portfolio_stats.current_value - portfolio_stats.qqq_equivalent) }})</small>
+                        <small class="text-light">VOO: ${{ "{:,.2f}".format(portfolio_stats.voo_equivalent) }} (${{ "{:,.2f}".format(portfolio_stats.current_value - portfolio_stats.voo_equivalent) }})</small>
+                        <small class="text-light">QQQ: ${{ "{:,.2f}".format(portfolio_stats.qqq_equivalent) }} (${{ "{:,.2f}".format(portfolio_stats.current_value - portfolio_stats.qqq_equivalent) }})</small>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-wallet fa-2x"></i>
@@ -250,7 +250,9 @@ const chart = new Chart(ctx, {
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
                 tension: 0.1,
-                fill: true
+                fill: true,
+                pointRadius: 0,
+                pointHoverRadius: 4
             },
             {
                 label: 'S&P 500 (VOO)',
@@ -258,7 +260,9 @@ const chart = new Chart(ctx, {
                 borderColor: 'rgb(153, 102, 255)',
                 backgroundColor: 'rgba(153, 102, 255, 0.1)',
                 tension: 0.1,
-                fill: false
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 4
             },
             {
                 label: 'NASDAQ (QQQ)',
@@ -266,7 +270,9 @@ const chart = new Chart(ctx, {
                 borderColor: 'rgb(255, 159, 64)',
                 backgroundColor: 'rgba(255, 159, 64, 0.1)',
                 tension: 0.1,
-                fill: false
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 4
             }
         ]
     },

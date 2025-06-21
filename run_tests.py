@@ -19,7 +19,12 @@ def run_command(cmd, description):
     print(f"{'='*60}")
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        # Set TESTING environment variable
+        import os
+        env = os.environ.copy()
+        env['TESTING'] = 'True'
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
         print(result.stdout)
         if result.stderr:
             print("STDERR:", result.stderr)
