@@ -7,41 +7,81 @@ class DataLoader:
     
     def import_transactions_from_csv(self, portfolio_id, csv_data):
         imported_count = 0
+        failed_rows = []
         
-        for row in csv_data:
-            is_valid, errors = self.validate_transaction_data(row)
-            if is_valid:
-                transaction = StockTransaction(
-                    portfolio_id=portfolio_id,
-                    ticker=row['ticker'],
-                    transaction_type=row['transaction_type'],
-                    date=datetime.strptime(row['date'], '%Y-%m-%d').date(),
-                    price_per_share=float(row['price_per_share']),
-                    shares=float(row['shares']),
-                    total_value=float(row['price_per_share']) * float(row['shares'])
-                )
-                db.session.add(transaction)
-                imported_count += 1
+        for i, row in enumerate(csv_data):
+            try:
+                is_valid, errors = self.validate_transaction_data(row)
+                if is_valid:
+                    # Clean price (remove $ signs)
+                    price_str = row.get('Price', '').strip().replace('$', '').replace(',', '')
+                    shares_str = row.get('Shares', '').strip()
+                    
+                    transaction = StockTransaction(
+                        portfolio_id=portfolio_id,
+                        ticker=row.get('Ticker', '').strip().upper(),
+                        transaction_type=row.get('Type', '').strip().upper(),
+                        date=datetime.strptime(row.get('Date', '').strip(), '%Y-%m-%d').date(),
+                        price_per_share=float(price_str),
+                        shares=float(shares_str),
+                        total_value=float(price_str) * float(shares_str)
+                    )
+                    db.session.add(transaction)
+                    imported_count += 1
+                else:
+                    failed_rows.append(f"Row {i+1}: {', '.join(errors)}")
+            except Exception as e:
+                failed_rows.append(f"Row {i+1}: {str(e)}")
         
         db.session.commit()
+        
+        if failed_rows:
+            self._last_import_errors = failed_rows
+        
         return imported_count
     
     def import_dividends_from_csv(self, portfolio_id, csv_data):
         imported_count = 0
+        failed_rows = []
         
-        for row in csv_data:
-            is_valid, errors = self.validate_dividend_data(row)
-            if is_valid:
-                dividend = Dividend(
-                    portfolio_id=portfolio_id,
-                    ticker=row['ticker'],
-                    payment_date=datetime.strptime(row['payment_date'], '%Y-%m-%d').date(),
-                    total_amount=float(row['total_amount'])
-                )
-                db.session.add(dividend)
-                imported_count += 1
+        for i, row in enumerate(csv_data):
+            try:
+                is_valid, errors = self.validate_dividend_data(row)
+                if is_valid:
+                    # Handle date format conversion
+                    date_str = row.get('Date', '').strip()
+                    if '/' in date_str:
+                        # Convert MM/DD/YY to YYYY-MM-DD
+                        parts = date_str.split('/')
+                        if len(parts[2]) == 2:
+                            year = '20' + parts[2] if int(parts[2]) < 50 else '19' + parts[2]
+                        else:
+                            year = parts[2]
+                        payment_date = datetime.strptime(f"{year}-{parts[0].zfill(2)}-{parts[1].zfill(2)}", '%Y-%m-%d').date()
+                    else:
+                        payment_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    
+                    # Clean amount (remove $ signs)
+                    amount_str = row.get('Amount', '').strip().replace('$', '').replace(',', '')
+                    
+                    dividend = Dividend(
+                        portfolio_id=portfolio_id,
+                        ticker=row.get('Ticker', '').strip().upper(),
+                        payment_date=payment_date,
+                        total_amount=float(amount_str)
+                    )
+                    db.session.add(dividend)
+                    imported_count += 1
+                else:
+                    failed_rows.append(f"Row {i+1}: {', '.join(errors)}")
+            except Exception as e:
+                failed_rows.append(f"Row {i+1}: {str(e)}")
         
         db.session.commit()
+        
+        if failed_rows:
+            self._last_import_errors = failed_rows
+        
         return imported_count
     
     def export_portfolio_to_csv(self, portfolio_id):
@@ -75,52 +115,70 @@ class DataLoader:
     def validate_transaction_data(self, data):
         errors = []
         
-        if not data.get('ticker'):
+        if not data.get('Ticker', '').strip():
             errors.append("Ticker is required")
         
-        if data.get('transaction_type') not in ['BUY', 'SELL']:
-            errors.append("Transaction type must be BUY or SELL")
+        transaction_type = data.get('Type', '').strip().upper()
+        if transaction_type not in ['BUY', 'SELL']:
+            errors.append("Type must be BUY or SELL")
         
-        try:
-            datetime.strptime(data.get('date', ''), '%Y-%m-%d')
-        except ValueError:
-            errors.append("Invalid date format")
+        date_str = data.get('Date', '').strip()
+        if not date_str:
+            errors.append("Date is required")
+        else:
+            try:
+                datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                errors.append("Invalid date format (use YYYY-MM-DD)")
         
-        try:
-            price = float(data.get('price_per_share', 0))
-            if price <= 0:
-                errors.append("Price must be positive")
-        except ValueError:
-            errors.append("Invalid price")
+        price_str = data.get('Price', '').strip().replace('$', '').replace(',', '')
+        if not price_str:
+            errors.append("Price is required")
+        else:
+            try:
+                price = float(price_str)
+                if price <= 0:
+                    errors.append("Price must be positive")
+            except ValueError:
+                errors.append("Invalid price format")
         
-        try:
-            shares = float(data.get('shares', 0))
-            if shares <= 0:
-                errors.append("Shares must be positive")
-        except ValueError:
-            errors.append("Invalid shares")
+        shares_str = data.get('Shares', '').strip()
+        if not shares_str:
+            errors.append("Shares is required")
+        else:
+            try:
+                shares = float(shares_str)
+                if shares <= 0:
+                    errors.append("Shares must be positive")
+            except ValueError:
+                errors.append("Invalid shares format")
         
         return len(errors) == 0, errors
     
     def validate_dividend_data(self, data):
         errors = []
         
-        if not data.get('ticker'):
+        if not data.get('Ticker', '').strip():
             errors.append("Ticker is required")
         
-        try:
-            datetime.strptime(data.get('payment_date', ''), '%Y-%m-%d')
-        except ValueError:
-            errors.append("Invalid date format")
+        date_str = data.get('Date', '').strip()
+        if not date_str:
+            errors.append("Date is required")
         
-        try:
-            amount = float(data.get('total_amount', 0))
-            if amount <= 0:
-                errors.append("Amount must be positive")
-        except ValueError:
-            errors.append("Invalid amount")
+        amount_str = data.get('Amount', '').strip().replace('$', '').replace(',', '')
+        if not amount_str:
+            errors.append("Amount is required")
+        else:
+            try:
+                amount = float(amount_str)
+                if amount <= 0:
+                    errors.append("Amount must be positive")
+            except ValueError:
+                errors.append("Invalid amount format")
         
         return len(errors) == 0, errors
+    
+
     
     def backup_to_csv(self, portfolio_id):
         # Simple implementation that returns True for testing

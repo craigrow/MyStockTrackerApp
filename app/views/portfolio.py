@@ -153,86 +153,49 @@ def import_csv():
         try:
             portfolio_id = request.form['portfolio_id']
             csv_file = request.files['csv_file']
+            import_type = request.form.get('import_type', 'transactions')
             
             if not portfolio_id or not csv_file:
                 flash('Portfolio and CSV file are required.', 'error')
                 return render_template('portfolio/import_csv.html', portfolios=portfolios)
             
-            # Process CSV file
-            import pandas as pd
+            from app.services.data_loader import DataLoader
+            import csv
             import io
             
-            # Read CSV content
-            csv_content = csv_file.read().decode('utf-8')
-            csv_data = pd.read_csv(io.StringIO(csv_content))
+            # Read CSV content and handle BOM
+            csv_content = csv_file.read().decode('utf-8-sig')  # Handles BOM automatically
+            csv_reader = csv.DictReader(io.StringIO(csv_content))
+            csv_data = list(csv_reader)
             
-            # Normalize column names to lowercase
-            csv_data.columns = csv_data.columns.str.lower().str.strip()
+            data_loader = DataLoader()
             
-            # Validate required columns
-            required_columns = ['ticker', 'date', 'type', 'shares', 'price']
-            missing_columns = [col for col in required_columns if col not in csv_data.columns]
-            
-            if missing_columns:
-                flash(f'Missing required columns: {", ".join(missing_columns)}', 'error')
+            if import_type == 'transactions':
+                imported_count = data_loader.import_transactions_from_csv(portfolio_id, csv_data)
+                if imported_count > 0:
+                    flash(f'Successfully imported {imported_count} transactions from CSV file.', 'success')
+                else:
+                    error_msg = 'No transactions were imported. '
+                    if hasattr(data_loader, '_last_import_errors'):
+                        error_msg += f'Errors: {" | ".join(data_loader._last_import_errors[:3])}'
+                    else:
+                        error_msg += 'Please check your CSV format and data.'
+                    flash(error_msg, 'warning')
+            elif import_type == 'dividends':
+                imported_count = data_loader.import_dividends_from_csv(portfolio_id, csv_data)
+                if imported_count > 0:
+                    flash(f'Successfully imported {imported_count} dividends from CSV file.', 'success')
+                else:
+                    error_msg = 'No dividends were imported. '
+                    if hasattr(data_loader, '_last_import_errors'):
+                        error_msg += f'Errors: {" | ".join(data_loader._last_import_errors[:3])}'
+                    else:
+                        error_msg += 'Please check your CSV format and data.'
+                    flash(error_msg, 'warning')
+            else:
+                flash('Invalid import type.', 'error')
                 return render_template('portfolio/import_csv.html', portfolios=portfolios)
             
-            # Clean and validate data
-            csv_data['ticker'] = csv_data['ticker'].str.upper().str.strip()
-            csv_data['type'] = csv_data['type'].str.upper().str.strip()
-            
-            # Handle price formatting
-            csv_data['price'] = csv_data['price'].astype(str).str.strip()
-            
-            # Check for non-dollar currencies
-            non_dollar_currencies = csv_data['price'].str.contains(r'[€£¥₹]', na=False)
-            if non_dollar_currencies.any():
-                flash('Only USD currency is supported. Remove currency symbols other than $ from price column.', 'error')
-                return render_template('portfolio/import_csv.html', portfolios=portfolios)
-            
-            # Remove dollar signs and convert to numeric
-            csv_data['price'] = csv_data['price'].str.replace('$', '', regex=False)
-            csv_data['price'] = pd.to_numeric(csv_data['price'], errors='coerce')
-            
-            # Handle shares - round to 6 decimal places
-            csv_data['shares'] = pd.to_numeric(csv_data['shares'], errors='coerce')
-            csv_data['shares'] = csv_data['shares'].round(6)
-            
-            # Remove rows with invalid data
-            csv_data = csv_data.dropna()
-            
-            # Validate transaction types
-            valid_types = ['BUY', 'SELL']
-            invalid_types = csv_data[~csv_data['type'].isin(valid_types)]
-            if not invalid_types.empty:
-                flash(f'Invalid transaction types found. Use BUY or SELL only.', 'error')
-                return render_template('portfolio/import_csv.html', portfolios=portfolios)
-            
-            # Convert dates
-            try:
-                csv_data['date'] = pd.to_datetime(csv_data['date']).dt.date
-            except Exception:
-                flash('Invalid date format. Use YYYY-MM-DD format.', 'error')
-                return render_template('portfolio/import_csv.html', portfolios=portfolios)
-            
-            # Import transactions
-            imported_count = 0
-            for _, row in csv_data.iterrows():
-                try:
-                    portfolio_service.add_transaction(
-                        portfolio_id=portfolio_id,
-                        ticker=row['ticker'],
-                        transaction_type=row['type'],
-                        date=row['date'],
-                        price_per_share=float(row['price']),
-                        shares=float(row['shares'])
-                    )
-                    imported_count += 1
-                except Exception as e:
-                    print(f"Error importing row: {e}")
-                    continue
-            
-            flash(f'Successfully imported {imported_count} transactions from CSV file.', 'success')
             return redirect(url_for('main.dashboard', portfolio_id=portfolio_id))
             
         except Exception as e:
