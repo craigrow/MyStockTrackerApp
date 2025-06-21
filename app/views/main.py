@@ -4,6 +4,9 @@ from app.services.price_service import PriceService
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 import pandas as pd
+from app.models.cache import PortfolioCache
+from app import db
+import uuid
 
 main_blueprint = Blueprint('main', __name__)
 
@@ -31,18 +34,41 @@ def dashboard():
     recent_transactions = []
     
     if current_portfolio:
-        # Get portfolio statistics
-        portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
+        # Check if we can use cached data
+        market_date = get_last_market_date()
+        is_market_closed = not is_market_open_now()
         
-        # Get current holdings with performance
+        # Try to get cached data if market is closed
+        portfolio_stats = None
+        chart_data = None
+        
+        if is_market_closed:
+            portfolio_stats = get_cached_portfolio_stats(current_portfolio.id, market_date)
+            chart_data = get_cached_chart_data(current_portfolio.id, market_date)
+        
+        # If no cached data or market is open, calculate fresh
+        if not portfolio_stats:
+            print("[CACHE] Calculating fresh portfolio stats")
+            portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
+            if is_market_closed:
+                cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
+        else:
+            print("[CACHE] Using cached portfolio stats")
+        
+        if not chart_data:
+            print("[CACHE] Calculating fresh chart data")
+            chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
+            if is_market_closed:
+                cache_chart_data(current_portfolio.id, market_date, chart_data)
+        else:
+            print("[CACHE] Using cached chart data")
+        
+        # Get current holdings with performance (always fresh for now)
         holdings = get_holdings_with_performance(current_portfolio.id, portfolio_service, price_service)
         
         # Get recent transactions (last 10)
         recent_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)[-10:]
         recent_transactions.reverse()  # Show most recent first
-        
-        # Generate chart data
-        chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
     else:
         chart_data = None
     
@@ -84,13 +110,31 @@ def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     total_gain_loss = current_value - net_invested + total_dividends
     gain_loss_percentage = (total_gain_loss / net_invested * 100) if net_invested > 0 else 0
     
+    # Calculate ETF equivalent values
+    voo_equivalent = calculate_current_etf_equivalent(portfolio.id, portfolio_service, price_service, 'VOO')
+    qqq_equivalent = calculate_current_etf_equivalent(portfolio.id, portfolio_service, price_service, 'QQQ')
+    
+    # Calculate ETF gains/losses
+    voo_gain_loss = voo_equivalent - net_invested if voo_equivalent else 0
+    qqq_gain_loss = qqq_equivalent - net_invested if qqq_equivalent else 0
+    
+    # Calculate ETF gain/loss percentages
+    voo_gain_loss_percentage = (voo_gain_loss / net_invested * 100) if net_invested > 0 else 0
+    qqq_gain_loss_percentage = (qqq_gain_loss / net_invested * 100) if net_invested > 0 else 0
+    
     return {
         'current_value': current_value,
         'total_invested': net_invested,
         'total_gain_loss': total_gain_loss,
         'gain_loss_percentage': gain_loss_percentage,
         'cash_balance': cash_balance,
-        'total_dividends': total_dividends
+        'total_dividends': total_dividends,
+        'voo_equivalent': voo_equivalent or 0,
+        'qqq_equivalent': qqq_equivalent or 0,
+        'voo_gain_loss': voo_gain_loss,
+        'qqq_gain_loss': qqq_gain_loss,
+        'voo_gain_loss_percentage': voo_gain_loss_percentage,
+        'qqq_gain_loss_percentage': qqq_gain_loss_percentage
     }
 
 def get_holdings_with_performance(portfolio_id, portfolio_service, price_service):
@@ -451,3 +495,136 @@ def calculate_etf_value_on_date(portfolio_id, target_date, etf_ticker, portfolio
                 total_etf_value += etf_value
     
     return total_etf_value
+
+def calculate_current_etf_equivalent(portfolio_id, portfolio_service, price_service, etf_ticker):
+    """Calculate current value of ETF equivalent investment"""
+    transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
+    
+    total_etf_shares = 0
+    
+    for transaction in transactions:
+        if transaction.transaction_type == 'BUY':
+            # Get ETF price on the transaction date
+            etf_price_on_buy_date = get_historical_price(etf_ticker, transaction.date)
+            
+            if etf_price_on_buy_date:
+                # Calculate how many ETF shares could have been bought
+                etf_shares = transaction.total_value / etf_price_on_buy_date
+                total_etf_shares += etf_shares
+    
+    # Get current ETF price
+    try:
+        current_etf_price = price_service.get_current_price(etf_ticker)
+        if current_etf_price:
+            return total_etf_shares * current_etf_price
+    except:
+        pass
+    
+    return 0
+
+def is_market_open_now():
+    """Check if US stock market is currently open"""
+    from datetime import datetime, time
+    import pytz
+    
+    # Get current time in Eastern timezone
+    eastern = pytz.timezone('US/Eastern')
+    now = datetime.now(eastern)
+    
+    # Market is closed on weekends
+    if now.weekday() >= 5:  # Saturday = 5, Sunday = 6
+        return False
+    
+    # Market hours: 9:30 AM - 4:00 PM ET
+    market_open = time(9, 30)
+    market_close = time(16, 0)
+    current_time = now.time()
+    
+    return market_open <= current_time <= market_close
+
+def get_last_market_date():
+    """Get the last market trading date"""
+    today = date.today()
+    
+    # If today is a weekday and market hours have passed, use today
+    # Otherwise use the previous weekday
+    if today.weekday() < 5:  # Monday = 0, Friday = 4
+        if is_market_open_now():
+            # Market is open, use previous day
+            days_back = 1
+            if today.weekday() == 0:  # Monday
+                days_back = 3  # Go back to Friday
+            return today - timedelta(days=days_back)
+        else:
+            # Market is closed, use today if it's a weekday
+            return today
+    else:
+        # Weekend, go back to Friday
+        days_back = today.weekday() - 4  # Friday = 4
+        return today - timedelta(days=days_back)
+
+def get_cached_portfolio_stats(portfolio_id, market_date):
+    """Get cached portfolio statistics"""
+    cache = PortfolioCache.query.filter_by(
+        portfolio_id=portfolio_id,
+        cache_type='stats',
+        market_date=market_date
+    ).first()
+    
+    if cache:
+        return cache.get_data()
+    return None
+
+def cache_portfolio_stats(portfolio_id, market_date, stats):
+    """Cache portfolio statistics"""
+    # Remove existing cache for this date
+    PortfolioCache.query.filter_by(
+        portfolio_id=portfolio_id,
+        cache_type='stats',
+        market_date=market_date
+    ).delete()
+    
+    # Create new cache entry
+    cache = PortfolioCache(
+        id=str(uuid.uuid4()),
+        portfolio_id=portfolio_id,
+        cache_type='stats',
+        market_date=market_date
+    )
+    cache.set_data(stats)
+    
+    db.session.add(cache)
+    db.session.commit()
+
+def get_cached_chart_data(portfolio_id, market_date):
+    """Get cached chart data"""
+    cache = PortfolioCache.query.filter_by(
+        portfolio_id=portfolio_id,
+        cache_type='chart_data',
+        market_date=market_date
+    ).first()
+    
+    if cache:
+        return cache.get_data()
+    return None
+
+def cache_chart_data(portfolio_id, market_date, chart_data):
+    """Cache chart data"""
+    # Remove existing cache for this date
+    PortfolioCache.query.filter_by(
+        portfolio_id=portfolio_id,
+        cache_type='chart_data',
+        market_date=market_date
+    ).delete()
+    
+    # Create new cache entry
+    cache = PortfolioCache(
+        id=str(uuid.uuid4()),
+        portfolio_id=portfolio_id,
+        cache_type='chart_data',
+        market_date=market_date
+    )
+    cache.set_data(chart_data)
+    
+    db.session.add(cache)
+    db.session.commit()

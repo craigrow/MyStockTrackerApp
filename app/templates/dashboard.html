@@ -25,13 +25,15 @@
 
 {% if current_portfolio %}
 <div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Portfolio Value</h6>
-                        <h4>${{ "%.2f"|format(portfolio_stats.current_value) }}</h4>
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="d-flex flex-column">
+                        <h6 class="card-title mb-2">Portfolio Value</h6>
+                        <h4 class="mb-1">${{ "{:,.2f}".format(portfolio_stats.current_value) }}</h4>
+                        <small class="text-light">VOO: ${{ "{:,.2f}".format(portfolio_stats.voo_equivalent) }} (${{ "{:+,.2f}".format(portfolio_stats.current_value - portfolio_stats.voo_equivalent) }})</small>
+                        <small class="text-light">QQQ: ${{ "{:,.2f}".format(portfolio_stats.qqq_equivalent) }} (${{ "{:+,.2f}".format(portfolio_stats.current_value - portfolio_stats.qqq_equivalent) }})</small>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-wallet fa-2x"></i>
@@ -40,14 +42,15 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Total Gain/Loss</h6>
-                        <h4>${{ "%.2f"|format(portfolio_stats.total_gain_loss) }}</h4>
-                        <small>{{ "%.2f"|format(portfolio_stats.gain_loss_percentage) }}%</small>
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="d-flex flex-column">
+                        <h6 class="card-title mb-2">Total Gain/Loss</h6>
+                        <h4 class="mb-1">${{ "{:,.2f}".format(portfolio_stats.total_gain_loss) }} ({{ "%.2f"|format(portfolio_stats.gain_loss_percentage) }}%)</h4>
+                        <small class="text-light">VOO: ${{ "{:,.2f}".format(portfolio_stats.voo_gain_loss) }} ({{ "%.2f"|format(portfolio_stats.voo_gain_loss_percentage) }}%)</small>
+                        <small class="text-light">QQQ: ${{ "{:,.2f}".format(portfolio_stats.qqq_gain_loss) }} ({{ "%.2f"|format(portfolio_stats.qqq_gain_loss_percentage) }}%)</small>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-chart-line fa-2x"></i>
@@ -56,28 +59,14 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Total Invested</h6>
-                        <h4>${{ "%.2f"|format(portfolio_stats.total_invested) }}</h4>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-coins fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Cash Balance</h6>
-                        <h4>${{ "%.2f"|format(portfolio_stats.cash_balance) }}</h4>
+
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card bg-warning text-white h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between flex-grow-1">
+                    <div class="d-flex flex-column">
+                        <h6 class="card-title mb-2">Cash Balance</h6>
+                        <h4 class="mb-1">${{ "{:,.2f}".format(portfolio_stats.cash_balance) }}</h4>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-dollar-sign fa-2x"></i>

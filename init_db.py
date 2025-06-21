@@ -10,6 +10,7 @@ def init_database():
         from app.models.stock import Stock
         from app.models.portfolio import Portfolio, StockTransaction, Dividend, CashBalance
         from app.models.price import PriceHistory
+        from app.models.cache import PortfolioCache
         
         # Create all tables
         db.create_all()
