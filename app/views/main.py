@@ -684,12 +684,12 @@ def calculate_daily_changes(portfolio_id, portfolio_service, price_service):
     print(f"[DEBUG] Portfolio change: {portfolio_change}")
     
     result = {
-        'voo_daily_change': voo_change.get('percentage', 0),
-        'voo_daily_dollar_change': voo_change.get('dollar', 0),
-        'qqq_daily_change': qqq_change.get('percentage', 0),
-        'qqq_daily_dollar_change': qqq_change.get('dollar', 0),
-        'portfolio_daily_change': portfolio_change.get('percentage', 0),
-        'portfolio_daily_dollar_change': portfolio_change.get('dollar', 0)
+        'voo_daily_change': voo_change.get('percentage', 0) if isinstance(voo_change, dict) else 0,
+        'voo_daily_dollar_change': voo_change.get('dollar', 0) if isinstance(voo_change, dict) else 0,
+        'qqq_daily_change': qqq_change.get('percentage', 0) if isinstance(qqq_change, dict) else 0,
+        'qqq_daily_dollar_change': qqq_change.get('dollar', 0) if isinstance(qqq_change, dict) else 0,
+        'portfolio_daily_change': portfolio_change.get('percentage', 0) if isinstance(portfolio_change, dict) else 0,
+        'portfolio_daily_dollar_change': portfolio_change.get('dollar', 0) if isinstance(portfolio_change, dict) else 0
     }
     print(f"[DEBUG] Final result: {result}")
     return result
