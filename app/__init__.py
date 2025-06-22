@@ -4,18 +4,18 @@ import os
 
 db = SQLAlchemy()
 
-def create_app(config_name="development"):
+def create_app(config_name=None):
     app = Flask(__name__)
     
     # Configuration
     if isinstance(config_name, dict):
         app.config.update(config_name)
-    elif config_name == "development":
-        app.config.from_object('app.config.DevelopmentConfig')
     elif config_name == "testing":
         app.config.from_object('app.config.TestingConfig')
-    else:
+    elif os.environ.get('FLASK_ENV') == 'production' or os.environ.get('HEROKU'):
         app.config.from_object('app.config.ProductionConfig')
+    else:
+        app.config.from_object('app.config.DevelopmentConfig')
     
     # Initialize extensions
     db.init_app(app)
