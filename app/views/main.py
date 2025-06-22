@@ -56,11 +56,14 @@ def dashboard():
                     portfolio_stats = get_cached_portfolio_stats(current_portfolio.id, market_date)
                     chart_data = get_cached_chart_data(current_portfolio.id, market_date)
                 
-                # Force fresh calculation for now to debug daily changes
-                print("[CACHE] Calculating fresh portfolio stats for debugging")
-                portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
-                if is_market_closed and portfolio_stats:
-                    cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
+                # If no cached data or market is open, calculate fresh
+                if not portfolio_stats or 'portfolio_daily_change' not in portfolio_stats:
+                    print("[CACHE] Calculating fresh portfolio stats (missing daily changes)")
+                    portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
+                    if is_market_closed and portfolio_stats:
+                        cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
+                else:
+                    print("[CACHE] Using cached portfolio stats")
                 
                 if not chart_data:
                     print("[CACHE] Calculating fresh chart data")
@@ -662,28 +665,14 @@ def calculate_daily_changes(portfolio_id, portfolio_service, price_service):
     last_trading_day = get_last_market_date()
     previous_trading_day = get_previous_trading_day(last_trading_day)
     
-    print(f"[DEBUG] Trading days: last={last_trading_day}, previous={previous_trading_day}")
-    
-    # Check what cached data we have
-    voo_prices = PriceHistory.query.filter_by(ticker='VOO').order_by(PriceHistory.date.desc()).limit(5).all()
-    print(f"[DEBUG] VOO cached prices: {[(p.date, p.close_price) for p in voo_prices]}")
-    
-    # Check portfolio holdings
-    holdings = portfolio_service.get_current_holdings(portfolio_id)
-    print(f"[DEBUG] Portfolio holdings: {holdings}")
-    
     # Calculate ETF daily changes with portfolio equivalent values
     voo_change = calculate_etf_daily_change_for_portfolio('VOO', portfolio_id, portfolio_service, price_service)
     qqq_change = calculate_etf_daily_change_for_portfolio('QQQ', portfolio_id, portfolio_service, price_service)
     
-    print(f"[DEBUG] ETF changes: VOO={voo_change}, QQQ={qqq_change}")
-    
     # Calculate portfolio daily change
     portfolio_change = calculate_portfolio_daily_change(portfolio_id, last_trading_day, previous_trading_day, portfolio_service, price_service)
     
-    print(f"[DEBUG] Portfolio change: {portfolio_change}")
-    
-    result = {
+    return {
         'voo_daily_change': voo_change.get('percentage', 0) if isinstance(voo_change, dict) else 0,
         'voo_daily_dollar_change': voo_change.get('dollar', 0) if isinstance(voo_change, dict) else 0,
         'qqq_daily_change': qqq_change.get('percentage', 0) if isinstance(qqq_change, dict) else 0,
@@ -691,8 +680,6 @@ def calculate_daily_changes(portfolio_id, portfolio_service, price_service):
         'portfolio_daily_change': portfolio_change.get('percentage', 0) if isinstance(portfolio_change, dict) else 0,
         'portfolio_daily_dollar_change': portfolio_change.get('dollar', 0) if isinstance(portfolio_change, dict) else 0
     }
-    print(f"[DEBUG] Final result: {result}")
-    return result
     
 
 
@@ -729,10 +716,10 @@ def calculate_etf_daily_change_for_portfolio(ticker, portfolio_id, portfolio_ser
             
             dollar_change = etf_equivalent_value * (percentage_change / 100)
             
-            print(f"[DEBUG] {ticker}: {percentage_change:.2f}%, equivalent value=${etf_equivalent_value:.2f}, dollar change=${dollar_change:.2f}")
+
             return {'percentage': percentage_change, 'dollar': dollar_change}
         else:
-            print(f"[DEBUG] {ticker}: Missing cached prices")
+            return {'percentage': 0, 'dollar': 0}
     except Exception as e:
         print(f"Error calculating daily change for {ticker}: {e}")
     
@@ -773,7 +760,7 @@ def calculate_portfolio_daily_change(portfolio_id, today, yesterday, portfolio_s
             if previous_price_record:
                 yesterday_value += shares * previous_price_record.close_price
         
-        print(f"[DEBUG] Portfolio values: {last_trading_day}=${current_value:.2f}, {previous_trading_day}=${yesterday_value:.2f}")
+
         
         if yesterday_value > 0:
             daily_dollar_change = current_value - yesterday_value
