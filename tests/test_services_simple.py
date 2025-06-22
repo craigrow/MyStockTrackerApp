@@ -154,11 +154,11 @@ class TestDataLoader:
             service = DataLoader()
             
             valid_data = {
-                'ticker': 'AAPL',
-                'transaction_type': 'BUY',
-                'date': '2023-01-01',
-                'price_per_share': '150.00',
-                'shares': '10.0'
+                'Ticker': 'AAPL',
+                'Type': 'BUY',
+                'Date': '2023-01-01',
+                'Price': '150.00',
+                'Shares': '10.0'
             }
             
             is_valid, errors = service.validate_transaction_data(valid_data)
@@ -170,9 +170,9 @@ class TestDataLoader:
             service = DataLoader()
             
             valid_data = {
-                'ticker': 'AAPL',
-                'payment_date': '2023-01-15',
-                'total_amount': '25.50'
+                'Ticker': 'AAPL',
+                'Date': '2023-01-15',
+                'Amount': '25.50'
             }
             
             is_valid, errors = service.validate_dividend_data(valid_data)
@@ -191,11 +191,11 @@ class TestDataLoader:
             
             csv_data = [
                 {
-                    'ticker': 'AAPL',
-                    'transaction_type': 'BUY',
-                    'date': '2023-01-01',
-                    'price_per_share': '150.00',
-                    'shares': '10.0'
+                    'Ticker': 'AAPL',
+                    'Type': 'BUY',
+                    'Date': '2023-01-01',
+                    'Price': '150.00',
+                    'Shares': '10.0'
                 }
             ]
             

@@ -128,27 +128,27 @@ class TestDataLoaderIntegration:
             # Import transaction data
             transaction_data = [
                 {
-                    'ticker': 'AAPL',
-                    'transaction_type': 'BUY',
-                    'date': '2023-01-01',
-                    'price_per_share': '150.00',
-                    'shares': '10.0'
+                    'Ticker': 'AAPL',
+                    'Type': 'BUY',
+                    'Date': '2023-01-01',
+                    'Price': '150.00',
+                    'Shares': '10.0'
                 },
                 {
-                    'ticker': 'GOOGL',
-                    'transaction_type': 'BUY',
-                    'date': '2023-01-15',
-                    'price_per_share': '2500.00',
-                    'shares': '2.0'
+                    'Ticker': 'GOOGL',
+                    'Type': 'BUY',
+                    'Date': '2023-01-15',
+                    'Price': '2500.00',
+                    'Shares': '2.0'
                 }
             ]
             
             # Import dividend data
             dividend_data = [
                 {
-                    'ticker': 'AAPL',
-                    'payment_date': '2023-03-15',
-                    'total_amount': '25.50'
+                    'Ticker': 'AAPL',
+                    'Date': '2023-03-15',
+                    'Amount': '25.50'
                 }
             ]
             

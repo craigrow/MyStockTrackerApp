@@ -403,18 +403,18 @@ class TestDataLoader:
         with app.app_context():
             csv_data = [
                 {
-                    'ticker': 'AAPL',
-                    'transaction_type': 'BUY',
-                    'date': '2023-01-01',
-                    'price_per_share': '150.00',
-                    'shares': '10.0'
+                    'Ticker': 'AAPL',
+                    'Type': 'BUY',
+                    'Date': '2023-01-01',
+                    'Price': '150.00',
+                    'Shares': '10.0'
                 },
                 {
-                    'ticker': 'GOOGL',
-                    'transaction_type': 'BUY',
-                    'date': '2023-01-02',
-                    'price_per_share': '2500.00',
-                    'shares': '2.0'
+                    'Ticker': 'GOOGL',
+                    'Type': 'BUY',
+                    'Date': '2023-01-02',
+                    'Price': '2500.00',
+                    'Shares': '2.0'
                 }
             ]
             
@@ -437,14 +437,14 @@ class TestDataLoader:
         with app.app_context():
             csv_data = [
                 {
-                    'ticker': 'AAPL',
-                    'payment_date': '2023-01-15',
-                    'total_amount': '25.50'
+                    'Ticker': 'AAPL',
+                    'Date': '2023-01-15',
+                    'Amount': '25.50'
                 },
                 {
-                    'ticker': 'MSFT',
-                    'payment_date': '2023-01-20',
-                    'total_amount': '15.75'
+                    'Ticker': 'MSFT',
+                    'Date': '2023-01-20',
+                    'Amount': '15.75'
                 }
             ]
             
@@ -495,11 +495,11 @@ class TestDataLoader:
     def test_validate_transaction_data(self, data_loader, app):
         with app.app_context():
             valid_data = {
-                'ticker': 'AAPL',
-                'transaction_type': 'BUY',
-                'date': '2023-01-01',
-                'price_per_share': '150.00',
-                'shares': '10.0'
+                'Ticker': 'AAPL',
+                'Type': 'BUY',
+                'Date': '2023-01-01',
+                'Price': '150.00',
+                'Shares': '10.0'
             }
             
             is_valid, errors = data_loader.validate_transaction_data(valid_data)
@@ -523,9 +523,9 @@ class TestDataLoader:
     def test_validate_dividend_data(self, data_loader, app):
         with app.app_context():
             valid_data = {
-                'ticker': 'AAPL',
-                'payment_date': '2023-01-15',
-                'total_amount': '25.50'
+                'Ticker': 'AAPL',
+                'Date': '2023-01-15',
+                'Amount': '25.50'
             }
             
             is_valid, errors = data_loader.validate_dividend_data(valid_data)
