@@ -61,15 +61,17 @@
     </div>
 
     <div class="col-md-4 col-sm-6 mb-3">
-        <div class="card bg-warning text-white h-100">
+        <div class="card bg-info text-white h-100">
             <div class="card-body d-flex flex-column">
                 <div class="d-flex justify-content-between flex-grow-1">
                     <div class="d-flex flex-column">
-                        <h6 class="card-title mb-2">Cash Balance</h6>
-                        <h4 class="mb-1">${{ "{:,.2f}".format(portfolio_stats.cash_balance) }}</h4>
+                        <h6 class="card-title mb-2">Today vs. the Market</h6>
+                        <h4 class="mb-1">{% if 'portfolio_daily_dollar_change' in portfolio_stats %}${{ "+" if portfolio_stats['portfolio_daily_dollar_change'] >= 0 else "" }}{{ "{:,.2f}".format(portfolio_stats['portfolio_daily_dollar_change']) }} ({{ "+" if portfolio_stats['portfolio_daily_change'] >= 0 else "" }}{{ "%.2f"|format(portfolio_stats['portfolio_daily_change']) }}%){% else %}{{ "" if not print('[ERROR] Portfolio daily changes missing from stats') }}error{% endif %}</h4>
+                        <small class="text-light">VOO: {% if 'voo_daily_dollar_change' in portfolio_stats %}${{ "+" if portfolio_stats['voo_daily_dollar_change'] >= 0 else "" }}{{ "{:,.2f}".format(portfolio_stats['voo_daily_dollar_change']) }} ({{ "+" if portfolio_stats['voo_daily_change'] >= 0 else "" }}{{ "%.2f"|format(portfolio_stats['voo_daily_change']) }}%){% else %}{{ "" if not print('[ERROR] VOO daily changes missing from stats') }}error{% endif %}</small>
+                        <small class="text-light">QQQ: {% if 'qqq_daily_dollar_change' in portfolio_stats %}${{ "+" if portfolio_stats['qqq_daily_dollar_change'] >= 0 else "" }}{{ "{:,.2f}".format(portfolio_stats['qqq_daily_dollar_change']) }} ({{ "+" if portfolio_stats['qqq_daily_change'] >= 0 else "" }}{{ "%.2f"|format(portfolio_stats['qqq_daily_change']) }}%){% else %}{{ "" if not print('[ERROR] QQQ daily changes missing from stats') }}error{% endif %}</small>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-dollar-sign fa-2x"></i>
+                        <i class="fas fa-chart-bar fa-2x"></i>
                     </div>
                 </div>
             </div>

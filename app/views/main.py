@@ -56,14 +56,11 @@ def dashboard():
                     portfolio_stats = get_cached_portfolio_stats(current_portfolio.id, market_date)
                     chart_data = get_cached_chart_data(current_portfolio.id, market_date)
                 
-                # If no cached data or market is open, calculate fresh
-                if not portfolio_stats:
-                    print("[CACHE] Calculating fresh portfolio stats")
-                    portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
-                    if is_market_closed and portfolio_stats:
-                        cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
-                else:
-                    print("[CACHE] Using cached portfolio stats")
+                # Force fresh calculation for now to debug daily changes
+                print("[CACHE] Calculating fresh portfolio stats for debugging")
+                portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
+                if is_market_closed and portfolio_stats:
+                    cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
                 
                 if not chart_data:
                     print("[CACHE] Calculating fresh chart data")
@@ -137,7 +134,10 @@ def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     voo_gain_loss_percentage = (voo_gain_loss / net_invested * 100) if net_invested > 0 else 0
     qqq_gain_loss_percentage = (qqq_gain_loss / net_invested * 100) if net_invested > 0 else 0
     
-    return {
+    # Calculate daily changes
+    daily_changes = calculate_daily_changes(portfolio.id, portfolio_service, price_service)
+    
+    stats = {
         'current_value': current_value,
         'total_invested': net_invested,
         'total_gain_loss': total_gain_loss,
@@ -151,6 +151,11 @@ def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
         'voo_gain_loss_percentage': voo_gain_loss_percentage,
         'qqq_gain_loss_percentage': qqq_gain_loss_percentage
     }
+    
+    # Merge daily changes into stats
+    stats.update(daily_changes)
+    
+    return stats
 
 def get_holdings_with_performance(portfolio_id, portfolio_service, price_service):
     """Get holdings with current prices and performance"""
@@ -649,3 +654,155 @@ def cache_chart_data(portfolio_id, market_date, chart_data):
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+def calculate_daily_changes(portfolio_id, portfolio_service, price_service):
+    """Calculate daily percentage changes for portfolio and ETFs"""
+    from app.models.price import PriceHistory
+    
+    last_trading_day = get_last_market_date()
+    previous_trading_day = get_previous_trading_day(last_trading_day)
+    
+    print(f"[DEBUG] Trading days: last={last_trading_day}, previous={previous_trading_day}")
+    
+    # Check what cached data we have
+    voo_prices = PriceHistory.query.filter_by(ticker='VOO').order_by(PriceHistory.date.desc()).limit(5).all()
+    print(f"[DEBUG] VOO cached prices: {[(p.date, p.close_price) for p in voo_prices]}")
+    
+    # Check portfolio holdings
+    holdings = portfolio_service.get_current_holdings(portfolio_id)
+    print(f"[DEBUG] Portfolio holdings: {holdings}")
+    
+    # Calculate ETF daily changes with portfolio equivalent values
+    voo_change = calculate_etf_daily_change_for_portfolio('VOO', portfolio_id, portfolio_service, price_service)
+    qqq_change = calculate_etf_daily_change_for_portfolio('QQQ', portfolio_id, portfolio_service, price_service)
+    
+    print(f"[DEBUG] ETF changes: VOO={voo_change}, QQQ={qqq_change}")
+    
+    # Calculate portfolio daily change
+    portfolio_change = calculate_portfolio_daily_change(portfolio_id, last_trading_day, previous_trading_day, portfolio_service, price_service)
+    
+    print(f"[DEBUG] Portfolio change: {portfolio_change}")
+    
+    result = {
+        'voo_daily_change': voo_change.get('percentage', 0),
+        'voo_daily_dollar_change': voo_change.get('dollar', 0),
+        'qqq_daily_change': qqq_change.get('percentage', 0),
+        'qqq_daily_dollar_change': qqq_change.get('dollar', 0),
+        'portfolio_daily_change': portfolio_change.get('percentage', 0),
+        'portfolio_daily_dollar_change': portfolio_change.get('dollar', 0)
+    }
+    print(f"[DEBUG] Final result: {result}")
+    return result
+    
+
+
+def calculate_etf_daily_change_for_portfolio(ticker, portfolio_id, portfolio_service, price_service):
+    """Calculate daily change for an ETF based on portfolio's equivalent investment"""
+    from app.models.price import PriceHistory
+    
+    try:
+        # Get the last two trading days
+        last_trading_day = get_last_market_date()
+        previous_trading_day = get_previous_trading_day(last_trading_day)
+        
+        # Get ETF price changes
+        current_price_record = PriceHistory.query.filter(
+            PriceHistory.ticker == ticker,
+            PriceHistory.date <= last_trading_day
+        ).order_by(PriceHistory.date.desc()).first()
+        
+        previous_price_record = PriceHistory.query.filter(
+            PriceHistory.ticker == ticker,
+            PriceHistory.date < last_trading_day
+        ).order_by(PriceHistory.date.desc()).first()
+        
+        if current_price_record and previous_price_record:
+            current_price = current_price_record.close_price
+            previous_price = previous_price_record.close_price
+            percentage_change = ((current_price - previous_price) / previous_price) * 100
+            
+            # Calculate dollar change based on portfolio's equivalent ETF investment
+            if ticker == 'VOO':
+                etf_equivalent_value = calculate_current_etf_equivalent(portfolio_id, portfolio_service, price_service, 'VOO')
+            else:  # QQQ
+                etf_equivalent_value = calculate_current_etf_equivalent(portfolio_id, portfolio_service, price_service, 'QQQ')
+            
+            dollar_change = etf_equivalent_value * (percentage_change / 100)
+            
+            print(f"[DEBUG] {ticker}: {percentage_change:.2f}%, equivalent value=${etf_equivalent_value:.2f}, dollar change=${dollar_change:.2f}")
+            return {'percentage': percentage_change, 'dollar': dollar_change}
+        else:
+            print(f"[DEBUG] {ticker}: Missing cached prices")
+    except Exception as e:
+        print(f"Error calculating daily change for {ticker}: {e}")
+    
+    return {'percentage': 0, 'dollar': 0}
+
+def calculate_portfolio_daily_change(portfolio_id, today, yesterday, portfolio_service, price_service):
+    """Calculate daily percentage and dollar change for the portfolio"""
+    try:
+        # Get current holdings
+        holdings = portfolio_service.get_current_holdings(portfolio_id)
+        
+        if not holdings:
+            return 0
+        
+        current_value = 0
+        yesterday_value = 0
+        
+        # Get the last two trading days
+        last_trading_day = get_last_market_date()
+        previous_trading_day = get_previous_trading_day(last_trading_day)
+        
+        from app.models.price import PriceHistory
+        
+        for ticker, shares in holdings.items():
+            # Get cached prices - use closest available dates
+            current_price_record = PriceHistory.query.filter(
+                PriceHistory.ticker == ticker,
+                PriceHistory.date <= last_trading_day
+            ).order_by(PriceHistory.date.desc()).first()
+            
+            previous_price_record = PriceHistory.query.filter(
+                PriceHistory.ticker == ticker,
+                PriceHistory.date < last_trading_day
+            ).order_by(PriceHistory.date.desc()).first()
+            
+            if current_price_record:
+                current_value += shares * current_price_record.close_price
+            if previous_price_record:
+                yesterday_value += shares * previous_price_record.close_price
+        
+        print(f"[DEBUG] Portfolio values: {last_trading_day}=${current_value:.2f}, {previous_trading_day}=${yesterday_value:.2f}")
+        
+        if yesterday_value > 0:
+            daily_dollar_change = current_value - yesterday_value
+            daily_percentage_change = (daily_dollar_change / yesterday_value) * 100
+            
+            # Update the return dictionary in calculate_daily_changes
+            return {
+                'percentage': daily_percentage_change,
+                'dollar': daily_dollar_change
+            }
+    except Exception as e:
+        print(f"Error calculating portfolio daily change: {e}")
+    
+    return {'percentage': 0, 'dollar': 0}
+
+def get_previous_trading_day(current_date):
+    """Get the previous trading day (skip weekends and holidays)"""
+    from app.models.price import PriceHistory
+    
+    # Find the most recent date before current_date that has price data
+    previous_price = PriceHistory.query.filter(
+        PriceHistory.date < current_date
+    ).order_by(PriceHistory.date.desc()).first()
+    
+    if previous_price:
+        return previous_price.date
+    
+    # Fallback to simple date calculation if no price data found
+    previous_date = current_date - timedelta(days=1)
+    while previous_date.weekday() >= 5:
+        previous_date -= timedelta(days=1)
+    return previous_date
