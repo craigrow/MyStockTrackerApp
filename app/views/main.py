@@ -146,14 +146,17 @@ def dashboard():
                     portfolio_stats = get_cached_portfolio_stats(current_portfolio.id, market_date)
                     chart_data = get_cached_chart_data(current_portfolio.id, market_date)
                 
-                # If no cached data or market is open, calculate fresh
-                if not portfolio_stats or 'portfolio_daily_change' not in portfolio_stats:
-                    print("[CACHE] Calculating fresh portfolio stats (missing daily changes)")
+                # Always calculate fresh daily changes, but use cached base stats when available
+                if not portfolio_stats:
+                    print("[CACHE] Calculating fresh portfolio stats (no cache)")
                     portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
                     if is_market_closed and portfolio_stats:
                         cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
                 else:
-                    print("[CACHE] Using cached portfolio stats")
+                    print("[CACHE] Using cached base stats, calculating fresh daily changes")
+                    # Always recalculate daily changes for accuracy
+                    daily_changes = calculate_daily_changes(current_portfolio.id, portfolio_service, price_service)
+                    portfolio_stats.update(daily_changes)
                 
                 if not chart_data:
                     print("[CACHE] Calculating fresh chart data")
@@ -164,6 +167,8 @@ def dashboard():
                     print("[CACHE] Using cached chart data")
             except Exception as e:
                 print(f"[CACHE] Error in caching logic: {e}")
+                import traceback
+                traceback.print_exc()
                 # Fallback to normal calculation
                 portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
                 chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
@@ -763,24 +768,47 @@ def calculate_daily_changes(portfolio_id, portfolio_service, price_service):
     """Calculate daily percentage changes for portfolio and ETFs"""
     from app.models.price import PriceHistory
     
-    last_trading_day = get_last_market_date()
-    previous_trading_day = get_previous_trading_day(last_trading_day)
-    
-    # Calculate ETF daily changes with portfolio equivalent values
-    voo_change = calculate_etf_daily_change_for_portfolio('VOO', portfolio_id, portfolio_service, price_service)
-    qqq_change = calculate_etf_daily_change_for_portfolio('QQQ', portfolio_id, portfolio_service, price_service)
-    
-    # Calculate portfolio daily change
-    portfolio_change = calculate_portfolio_daily_change(portfolio_id, last_trading_day, previous_trading_day, portfolio_service, price_service)
-    
-    return {
-        'voo_daily_change': voo_change.get('percentage', 0) if isinstance(voo_change, dict) else 0,
-        'voo_daily_dollar_change': voo_change.get('dollar', 0) if isinstance(voo_change, dict) else 0,
-        'qqq_daily_change': qqq_change.get('percentage', 0) if isinstance(qqq_change, dict) else 0,
-        'qqq_daily_dollar_change': qqq_change.get('dollar', 0) if isinstance(qqq_change, dict) else 0,
-        'portfolio_daily_change': portfolio_change.get('percentage', 0) if isinstance(portfolio_change, dict) else 0,
-        'portfolio_daily_dollar_change': portfolio_change.get('dollar', 0) if isinstance(portfolio_change, dict) else 0
-    }
+    try:
+        last_trading_day = get_last_market_date()
+        previous_trading_day = get_previous_trading_day(last_trading_day)
+        
+        print(f"[DAILY] Calculating daily changes for {last_trading_day} vs {previous_trading_day}")
+        
+        # Calculate ETF daily changes with portfolio equivalent values
+        voo_change = calculate_etf_daily_change_for_portfolio('VOO', portfolio_id, portfolio_service, price_service)
+        qqq_change = calculate_etf_daily_change_for_portfolio('QQQ', portfolio_id, portfolio_service, price_service)
+        
+        # Calculate portfolio daily change
+        portfolio_change = calculate_portfolio_daily_change(portfolio_id, last_trading_day, previous_trading_day, portfolio_service, price_service)
+        
+        print(f"[DAILY] Portfolio change: {portfolio_change}")
+        print(f"[DAILY] VOO change: {voo_change}")
+        print(f"[DAILY] QQQ change: {qqq_change}")
+        
+        result = {
+            'voo_daily_change': voo_change.get('percentage', 0) if isinstance(voo_change, dict) else 0,
+            'voo_daily_dollar_change': voo_change.get('dollar', 0) if isinstance(voo_change, dict) else 0,
+            'qqq_daily_change': qqq_change.get('percentage', 0) if isinstance(qqq_change, dict) else 0,
+            'qqq_daily_dollar_change': qqq_change.get('dollar', 0) if isinstance(qqq_change, dict) else 0,
+            'portfolio_daily_change': portfolio_change.get('percentage', 0) if isinstance(portfolio_change, dict) else 0,
+            'portfolio_daily_dollar_change': portfolio_change.get('dollar', 0) if isinstance(portfolio_change, dict) else 0
+        }
+        
+        print(f"[DAILY] Final result: {result}")
+        return result
+        
+    except Exception as e:
+        print(f"[DAILY] Error calculating daily changes: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'voo_daily_change': 0,
+            'voo_daily_dollar_change': 0,
+            'qqq_daily_change': 0,
+            'qqq_daily_dollar_change': 0,
+            'portfolio_daily_change': 0,
+            'portfolio_daily_dollar_change': 0
+        }
     
 
 
