@@ -477,14 +477,14 @@ function refreshPrices() {
         refreshBtn.disabled = true;
     }
     
-    // Refresh holdings with fresh data
+    // Refresh all prices including ETFs
     {% if current_portfolio %}
-    fetch(`/api/refresh-holdings/{{ current_portfolio.id }}`)
+    fetch(`/api/refresh-all-prices/{{ current_portfolio.id }}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 updateHoldingsTable(data.holdings);
-                logActivity('Price data refreshed successfully');
+                logActivity(`Refreshed ${data.refreshed_count}/${data.total_tickers} securities successfully`);
                 
                 // Reload page to update warnings and stats
                 setTimeout(() => {

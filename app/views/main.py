@@ -37,6 +37,42 @@ def refresh_holdings(portfolio_id):
             'error': str(e)
         }), 500
 
+@main_blueprint.route('/api/refresh-all-prices/<portfolio_id>')
+def refresh_all_prices(portfolio_id):
+    """Refresh all prices including holdings and ETFs"""
+    try:
+        portfolio_service = PortfolioService()
+        price_service = PriceService()
+        
+        # Get all tickers that need refreshing
+        holdings = portfolio_service.get_current_holdings(portfolio_id)
+        all_tickers = list(holdings.keys()) + ['VOO', 'QQQ']
+        
+        # Force refresh all prices
+        refreshed_count = 0
+        for ticker in all_tickers:
+            try:
+                price_service.get_current_price(ticker, use_stale=False)
+                refreshed_count += 1
+            except Exception as e:
+                print(f"Failed to refresh {ticker}: {e}")
+        
+        # Get updated holdings data
+        updated_holdings = get_holdings_with_performance(portfolio_id, portfolio_service, price_service, use_stale=False)
+        
+        return jsonify({
+            'success': True,
+            'refreshed_count': refreshed_count,
+            'total_tickers': len(all_tickers),
+            'holdings': updated_holdings,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @main_blueprint.route('/')
 @main_blueprint.route('/dashboard')
 def dashboard():
@@ -64,19 +100,30 @@ def dashboard():
     if current_portfolio:
         # Check for stale data and show clear warnings
         holdings = portfolio_service.get_current_holdings(current_portfolio.id)
-        stale_tickers = []
+        stale_holdings = []
+        stale_etfs = []
         
-        for ticker in list(holdings.keys()) + ['VOO', 'QQQ']:
+        # Check holdings for stale data
+        for ticker in holdings.keys():
             freshness = price_service.get_data_freshness(ticker, date.today())
             if freshness is None or freshness > 15:  # More than 15 minutes old
-                stale_tickers.append(ticker)
+                stale_holdings.append(ticker)
         
-        if stale_tickers:
+        # Check ETFs separately
+        for etf in ['VOO', 'QQQ']:
+            freshness = price_service.get_data_freshness(etf, date.today())
+            if freshness is None or freshness > 15:
+                stale_etfs.append(etf)
+        
+        # Only show warning if holdings have stale data
+        if stale_holdings:
             market_open = is_market_open_now()
             if market_open:
-                data_warnings.append(f"⚠️ MARKET IS OPEN: Price data for {len(stale_tickers)} securities is outdated. Prices shown may not reflect current market values.")
+                data_warnings.append(f"⚠️ MARKET IS OPEN: Price data for {len(stale_holdings)} holdings is outdated. Prices shown may not reflect current market values.")
             else:
-                data_warnings.append(f"ℹ️ Market is closed. Showing last available prices for {len(stale_tickers)} securities.")
+                data_warnings.append(f"ℹ️ Market is closed. Showing last available prices for {len(stale_holdings)} holdings.")
+        
+        stale_tickers = stale_holdings + stale_etfs  # Keep for button logic
         # Check if we're in testing mode
         import os
         is_testing = os.environ.get('TESTING') == 'True' or 'pytest' in os.environ.get('_', '')
@@ -139,7 +186,7 @@ def dashboard():
                          chart_data=chart_data,
                          data_warnings=data_warnings,
                          update_progress={'status': 'disabled'},
-                         stale_tickers=stale_tickers if 'stale_tickers' in locals() else [])
+                         stale_tickers=stale_holdings if 'stale_holdings' in locals() else [])
 
 def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     """Calculate portfolio statistics"""
