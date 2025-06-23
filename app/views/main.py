@@ -62,18 +62,21 @@ def dashboard():
     data_warnings = []
     
     if current_portfolio:
-        # Start background price updates immediately
-        try:
-            background_updater.queue_portfolio_price_updates(current_portfolio.id)
-        except Exception as e:
-            print(f"Background update failed to start: {e}")
+        # Check for stale data and show clear warnings
+        holdings = portfolio_service.get_current_holdings(current_portfolio.id)
+        stale_tickers = []
         
-        # Check for stale data and add warnings only if updater is actually running
-        progress = background_updater.get_progress()
-        if progress.get('stale_data') and progress.get('status') in ['queued', 'updating']:
-            stale_count = len(progress['stale_data'])
-            if stale_count > 0:
-                data_warnings.append(f"Price data for {stale_count} securities may be outdated. Updating in background...")
+        for ticker in list(holdings.keys()) + ['VOO', 'QQQ']:
+            freshness = price_service.get_data_freshness(ticker, date.today())
+            if freshness is None or freshness > 15:  # More than 15 minutes old
+                stale_tickers.append(ticker)
+        
+        if stale_tickers:
+            market_open = is_market_open_now()
+            if market_open:
+                data_warnings.append(f"⚠️ MARKET IS OPEN: Price data for {len(stale_tickers)} securities is outdated. Prices shown may not reflect current market values.")
+            else:
+                data_warnings.append(f"ℹ️ Market is closed. Showing last available prices for {len(stale_tickers)} securities.")
         # Check if we're in testing mode
         import os
         is_testing = os.environ.get('TESTING') == 'True' or 'pytest' in os.environ.get('_', '')
@@ -135,7 +138,8 @@ def dashboard():
                          recent_transactions=recent_transactions,
                          chart_data=chart_data,
                          data_warnings=data_warnings,
-                         update_progress=background_updater.get_progress())
+                         update_progress={'status': 'disabled'},
+                         stale_tickers=stale_tickers if 'stale_tickers' in locals() else [])
 
 def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     """Calculate portfolio statistics"""
