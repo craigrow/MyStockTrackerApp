@@ -30,7 +30,16 @@
     <div class="col-12">
         {% for warning in data_warnings %}
         <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>{{ warning }}
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ warning }}
+                </div>
+                {% if stale_tickers %}
+                <button class="btn btn-sm btn-outline-warning" onclick="refreshPrices()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh Prices
+                </button>
+                {% endif %}
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         {% endfor %}
@@ -456,6 +465,46 @@ function updateHoldingsTable(holdings) {
 updateCheckInterval = setInterval(checkUpdateProgress, 2000);
 logActivity('Starting price update monitoring');
 {% endif %}
+
+// Refresh prices function
+function refreshPrices() {
+    logActivity('Refreshing price data...');
+    
+    // Show loading state
+    const refreshBtn = document.querySelector('button[onclick="refreshPrices()"]');
+    if (refreshBtn) {
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+        refreshBtn.disabled = true;
+    }
+    
+    // Refresh holdings with fresh data
+    {% if current_portfolio %}
+    fetch(`/api/refresh-holdings/{{ current_portfolio.id }}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateHoldingsTable(data.holdings);
+                logActivity('Price data refreshed successfully');
+                
+                // Reload page to update warnings and stats
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                logActivity('Error refreshing prices: ' + data.error);
+            }
+        })
+        .catch(error => {
+            logActivity('Error refreshing prices: ' + error.message);
+        })
+        .finally(() => {
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh Prices';
+                refreshBtn.disabled = false;
+            }
+        });
+    {% endif %}
+}
 
 // Log page load
 logActivity('Dashboard loaded');
