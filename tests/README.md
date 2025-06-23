@@ -9,6 +9,10 @@ This directory contains comprehensive test cases for the MyStockTrackerApp, cove
 - **`test_models.py`** - Unit tests for all data models (Stock, Portfolio, StockTransaction, Dividend, CashBalance, PriceHistory)
 - **`test_services.py`** - Unit tests for all service classes (PortfolioService, PriceService, DataLoader)
 - **`test_integration.py`** - Integration tests that verify components work together correctly
+- **`test_dashboard_caching.py`** - Tests for dashboard caching logic and zero value detection
+- **`test_daily_changes_calculation.py`** - Tests for daily performance change calculations
+- **`test_api_endpoints.py`** - Tests for REST API endpoints
+- **`test_csv_duplicate_detection.py`** - Tests for CSV import duplicate prevention
 - **`conftest.py`** - Pytest configuration and shared fixtures
 
 ### Test Categories
@@ -30,6 +34,24 @@ This directory contains comprehensive test cases for the MyStockTrackerApp, cove
 - **Portfolio Integration**: Complete investment workflows
 - **Price Service Integration**: Caching and API fallback scenarios
 - **Data Loader Integration**: End-to-end import/export processes
+
+#### Dashboard Tests (`test_dashboard_caching.py`)
+- **Cache Detection**: Zero value detection and recalculation triggers
+- **Market Awareness**: Different caching behavior for market open/closed
+- **Fresh Calculations**: Validation of cache bypass scenarios
+
+#### Performance Tests (`test_daily_changes_calculation.py`)
+- **Daily Changes**: Portfolio and ETF daily performance calculations
+- **Error Handling**: Graceful degradation on calculation failures
+- **Data Validation**: Invalid response handling
+
+#### API Tests (`test_api_endpoints.py`)
+- **Price Refresh**: Manual price update endpoints
+- **Holdings Refresh**: Portfolio holdings update functionality
+
+#### Data Integrity Tests (`test_csv_duplicate_detection.py`)
+- **Duplicate Prevention**: CSV import duplicate detection
+- **Data Protection**: Portfolio value accuracy protection
 
 ## Running Tests
 
@@ -141,6 +163,21 @@ The test suite uses comprehensive fixtures defined in `conftest.py`:
 - `sample_price_history` - Sample price data
 - `multiple_transactions` - Multiple transaction records
 - `multiple_dividends` - Multiple dividend records
+
+## Test Coverage Statistics
+
+**Current Status: 114 tests, 100% pass rate**
+
+- **Model Tests**: 24 tests
+- **Service Tests**: 27 tests  
+- **Integration Tests**: 17 tests
+- **CSV Upload Tests**: 17 tests
+- **Daily Performance Tests**: 6 tests
+- **Dashboard Caching Tests**: 4 tests
+- **Daily Changes Tests**: 3 tests
+- **API Endpoint Tests**: 2 tests
+- **CSV Duplicate Tests**: 3 tests
+- **Simple Tests**: 11 tests
 
 ## Test Data
 
