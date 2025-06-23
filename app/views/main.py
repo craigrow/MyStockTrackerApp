@@ -63,11 +63,14 @@ def dashboard():
     
     if current_portfolio:
         # Start background price updates immediately
-        background_updater.queue_portfolio_price_updates(current_portfolio.id)
+        try:
+            background_updater.queue_portfolio_price_updates(current_portfolio.id)
+        except Exception as e:
+            print(f"Background update failed to start: {e}")
         
-        # Check for stale data and add warnings
+        # Check for stale data and add warnings only if updater is actually running
         progress = background_updater.get_progress()
-        if progress.get('stale_data'):
+        if progress.get('stale_data') and progress.get('status') in ['queued', 'updating']:
             stale_count = len(progress['stale_data'])
             if stale_count > 0:
                 data_warnings.append(f"Price data for {stale_count} securities may be outdated. Updating in background...")
