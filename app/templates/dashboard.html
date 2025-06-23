@@ -24,6 +24,44 @@
 </div>
 
 {% if current_portfolio %}
+<!-- Data Freshness Warnings -->
+{% if data_warnings %}
+<div class="row mb-3">
+    <div class="col-12">
+        {% for warning in data_warnings %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ warning }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Update Progress Bar -->
+<div class="row mb-3" id="updateProgressRow" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <div class="me-3">
+                        <i class="fas fa-sync-alt fa-spin text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Updating prices...</small>
+                            <small class="text-muted" id="progressText">0/0</small>
+                        </div>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row mb-4">
     <div class="col-md-4 col-sm-6 mb-3">
         <div class="card bg-primary text-white h-100">
@@ -101,7 +139,7 @@
             <div class="card-body">
                 {% if holdings %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover" id="holdingsTable">
                             <thead>
                                 <tr>
                                     <th>Ticker</th>
@@ -117,7 +155,14 @@
                                 <tr>
                                     <td><strong>{{ holding.ticker }}</strong></td>
                                     <td>{{ "%.3f"|format(holding.shares) }}</td>
-                                    <td>${{ "%.2f"|format(holding.current_price) }}</td>
+                                    <td>
+                                        ${{ "%.2f"|format(holding.current_price) }}
+                                        {% if holding.is_stale %}
+                                        <small class="text-warning ms-1" title="Data may be outdated">
+                                            <i class="fas fa-clock"></i>
+                                        </small>
+                                        {% endif %}
+                                    </td>
                                     <td>${{ "%.2f"|format(holding.market_value) }}</td>
                                     <td class="{{ 'text-success' if holding.gain_loss >= 0 else 'text-danger' }}">
                                         ${{ "%.2f"|format(holding.gain_loss) }}
@@ -331,6 +376,86 @@ function logActivity(message) {
         document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
     }
 }
+
+// Price update progress tracking
+let updateCheckInterval;
+
+function checkUpdateProgress() {
+    fetch('/api/price-update-progress')
+        .then(response => response.json())
+        .then(data => {
+            const progressRow = document.getElementById('updateProgressRow');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            if (data.status === 'updating' || data.status === 'queued') {
+                progressRow.style.display = 'block';
+                const percentage = data.total > 0 ? (data.current / data.total) * 100 : 0;
+                progressBar.style.width = percentage + '%';
+                progressText.textContent = `${data.current}/${data.total}`;
+                
+                logActivity(`Updating prices: ${data.current}/${data.total}`);
+            } else if (data.status === 'completed') {
+                progressRow.style.display = 'none';
+                logActivity('Price updates completed');
+                clearInterval(updateCheckInterval);
+                
+                // Refresh holdings data
+                {% if current_portfolio %}
+                refreshHoldings('{{ current_portfolio.id }}');
+                {% endif %}
+            } else if (data.status === 'error') {
+                progressRow.style.display = 'none';
+                logActivity('Price update error occurred');
+                clearInterval(updateCheckInterval);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking update progress:', error);
+        });
+}
+
+function refreshHoldings(portfolioId) {
+    fetch(`/api/refresh-holdings/${portfolioId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateHoldingsTable(data.holdings);
+                logActivity('Holdings data refreshed');
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing holdings:', error);
+        });
+}
+
+function updateHoldingsTable(holdings) {
+    const tbody = document.querySelector('#holdingsTable tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    holdings.forEach(holding => {
+        const row = document.createElement('tr');
+        const staleIcon = holding.is_stale ? '<small class="text-warning ms-1" title="Data may be outdated"><i class="fas fa-clock"></i></small>' : '';
+        const gainLossClass = holding.gain_loss >= 0 ? 'text-success' : 'text-danger';
+        
+        row.innerHTML = `
+            <td><strong>${holding.ticker}</strong></td>
+            <td>${holding.shares.toFixed(3)}</td>
+            <td>$${holding.current_price.toFixed(2)}${staleIcon}</td>
+            <td>$${holding.market_value.toFixed(2)}</td>
+            <td class="${gainLossClass}">$${holding.gain_loss.toFixed(2)}</td>
+            <td class="${gainLossClass}">${holding.gain_loss_percentage.toFixed(2)}%</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Start progress checking if updates are in progress
+{% if update_progress and update_progress.status in ['updating', 'queued'] %}
+updateCheckInterval = setInterval(checkUpdateProgress, 2000);
+logActivity('Starting price update monitoring');
+{% endif %}
 
 // Log page load
 logActivity('Dashboard loaded');

@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, jsonify
 from app.services.portfolio_service import PortfolioService
 from app.services.price_service import PriceService
+from app.services.background_tasks import background_updater
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 import pandas as pd
@@ -9,6 +10,32 @@ from app import db
 import uuid
 
 main_blueprint = Blueprint('main', __name__)
+
+@main_blueprint.route('/api/price-update-progress')
+def price_update_progress():
+    """Get current price update progress"""
+    progress = background_updater.get_progress()
+    return jsonify(progress)
+
+@main_blueprint.route('/api/refresh-holdings/<portfolio_id>')
+def refresh_holdings(portfolio_id):
+    """Get refreshed holdings data"""
+    try:
+        portfolio_service = PortfolioService()
+        price_service = PriceService()
+        
+        holdings = get_holdings_with_performance(portfolio_id, portfolio_service, price_service, use_stale=False)
+        
+        return jsonify({
+            'success': True,
+            'holdings': holdings,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @main_blueprint.route('/')
 @main_blueprint.route('/dashboard')
@@ -32,8 +59,18 @@ def dashboard():
     portfolio_stats = None
     holdings = []
     recent_transactions = []
+    data_warnings = []
     
     if current_portfolio:
+        # Start background price updates immediately
+        background_updater.queue_portfolio_price_updates(current_portfolio.id)
+        
+        # Check for stale data and add warnings
+        progress = background_updater.get_progress()
+        if progress.get('stale_data'):
+            stale_count = len(progress['stale_data'])
+            if stale_count > 0:
+                data_warnings.append(f"Price data for {stale_count} securities may be outdated. Updating in background...")
         # Check if we're in testing mode
         import os
         is_testing = os.environ.get('TESTING') == 'True' or 'pytest' in os.environ.get('_', '')
@@ -78,8 +115,8 @@ def dashboard():
                 portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
                 chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
         
-        # Get current holdings with performance (always fresh for now)
-        holdings = get_holdings_with_performance(current_portfolio.id, portfolio_service, price_service)
+        # Get current holdings with performance (use stale data for fast load)
+        holdings = get_holdings_with_performance(current_portfolio.id, portfolio_service, price_service, use_stale=True)
         
         # Get recent transactions (last 10)
         recent_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)[-10:]
@@ -93,7 +130,9 @@ def dashboard():
                          portfolio_stats=portfolio_stats,
                          holdings=holdings,
                          recent_transactions=recent_transactions,
-                         chart_data=chart_data)
+                         chart_data=chart_data,
+                         data_warnings=data_warnings,
+                         update_progress=background_updater.get_progress())
 
 def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     """Calculate portfolio statistics"""
@@ -111,7 +150,7 @@ def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     
     for ticker, shares in holdings.items():
         try:
-            current_price = price_service.get_current_price(ticker)
+            current_price = price_service.get_current_price(ticker, use_stale=True)
             if current_price:
                 current_value += shares * current_price
         except:
@@ -160,7 +199,7 @@ def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     
     return stats
 
-def get_holdings_with_performance(portfolio_id, portfolio_service, price_service):
+def get_holdings_with_performance(portfolio_id, portfolio_service, price_service, use_stale=False):
     """Get holdings with current prices and performance"""
     holdings = portfolio_service.get_current_holdings(portfolio_id)
     transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
@@ -183,8 +222,12 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
     
     for ticker, shares in holdings.items():
         try:
-            current_price = price_service.get_current_price(ticker) or 0
+            current_price = price_service.get_current_price(ticker, use_stale=use_stale) or 0
             market_value = shares * current_price
+            
+            # Check data freshness for warning
+            freshness = price_service.get_data_freshness(ticker, date.today())
+            is_stale = freshness is None or freshness > 5
             
             # Calculate cost basis for remaining shares
             avg_cost = cost_basis[ticker]['total_cost'] / cost_basis[ticker]['total_shares'] if cost_basis[ticker]['total_shares'] > 0 else 0
@@ -200,7 +243,9 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'market_value': market_value,
                 'cost_basis': total_cost,
                 'gain_loss': gain_loss,
-                'gain_loss_percentage': gain_loss_percentage
+                'gain_loss_percentage': gain_loss_percentage,
+                'data_age_minutes': freshness,
+                'is_stale': is_stale
             })
         except:
             # If price fetch fails, show holding without performance data
@@ -211,7 +256,9 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'market_value': 0,
                 'cost_basis': 0,
                 'gain_loss': 0,
-                'gain_loss_percentage': 0
+                'gain_loss_percentage': 0,
+                'data_age_minutes': None,
+                'is_stale': True
             })
     
     return holdings_data

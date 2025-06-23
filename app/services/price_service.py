@@ -6,18 +6,27 @@ import yfinance as yf
 
 class PriceService:
     
-    def get_current_price(self, ticker):
+    def get_current_price(self, ticker, use_stale=True):
+        """Get current price with option to use stale data"""
+        from datetime import date
+        
         # First check cache
         cached_price = self.get_cached_price(ticker, date.today())
         if cached_price and self.is_cache_fresh(ticker, date.today()):
             return cached_price
         
-        # Fetch from API
-        price = self.fetch_from_api(ticker)
+        # If we allow stale data and have cached price, return it
+        if use_stale and cached_price:
+            return cached_price
+        
+        # Fetch from API with timeout
+        price = self.fetch_from_api(ticker, timeout=10)
         if price:
             self.cache_price_data(ticker, date.today(), price, True)
+            return price
         
-        return price
+        # Fallback to cached price if API fails
+        return cached_price
     
     def get_cached_price(self, ticker, price_date):
         price_history = PriceHistory.query.filter_by(
@@ -26,28 +35,115 @@ class PriceService:
         ).first()
         return price_history.close_price if price_history else None
     
-    def is_cache_fresh(self, ticker, price_date):
+    def is_cache_fresh(self, ticker, price_date, freshness_minutes=5):
         price_history = PriceHistory.query.filter_by(
             ticker=ticker, 
             date=price_date
         ).first()
         
-        if not price_history:
+        if not price_history or not price_history.last_updated:
             return False
         
-        # Consider cache fresh if updated within last 5 minutes
+        # Consider cache fresh if updated within specified minutes
         time_diff = datetime.utcnow() - price_history.last_updated
-        return time_diff < timedelta(minutes=5)
+        return time_diff < timedelta(minutes=freshness_minutes)
     
-    def fetch_from_api(self, ticker):
+    def get_data_freshness(self, ticker, price_date):
+        """Get how old the cached data is in minutes"""
+        price_history = PriceHistory.query.filter_by(
+            ticker=ticker, 
+            date=price_date
+        ).first()
+        
+        if not price_history or not price_history.last_updated:
+            return None
+        
+        time_diff = datetime.utcnow() - price_history.last_updated
+        return int(time_diff.total_seconds() / 60)
+    
+    def fetch_from_api(self, ticker, timeout=10):
         try:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(period="1d")
-            if not hist.empty and len(hist) > 0:
-                return float(hist.iloc[-1]['Close'])
-        except Exception:
-            pass
-        return None
+            import threading
+            import time
+            
+            result = {'price': None, 'error': None}
+            
+            def fetch_price():
+                try:
+                    stock = yf.Ticker(ticker)
+                    hist = stock.history(period="1d")
+                    if not hist.empty and len(hist) > 0:
+                        result['price'] = float(hist.iloc[-1]['Close'])
+                except Exception as e:
+                    result['error'] = str(e)
+            
+            # Use threading for timeout (cross-platform)
+            thread = threading.Thread(target=fetch_price)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout)
+            
+            if thread.is_alive():
+                print(f"API call timed out for {ticker}")
+                return None
+            
+            if result['error']:
+                print(f"API fetch failed for {ticker}: {result['error']}")
+                return None
+                
+            return result['price']
+                
+        except Exception as e:
+            print(f"API fetch failed for {ticker}: {e}")
+            return None
+    
+    def batch_fetch_current_prices(self, tickers, timeout=30):
+        """Fetch current prices for multiple tickers with timeout"""
+        prices = {}
+        try:
+            import threading
+            
+            result = {'data': None, 'error': None}
+            
+            def fetch_batch():
+                try:
+                    # Use yfinance download for batch processing
+                    import yfinance as yf
+                    data = yf.download(tickers, period="1d", group_by='ticker', progress=False)
+                    result['data'] = data
+                except Exception as e:
+                    result['error'] = str(e)
+            
+            # Use threading for timeout
+            thread = threading.Thread(target=fetch_batch)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout)
+            
+            if thread.is_alive() or result['error']:
+                print(f"Batch fetch failed or timed out: {result.get('error', 'timeout')}")
+                # Fallback to individual fetches
+                for ticker in tickers:
+                    prices[ticker] = self.fetch_from_api(ticker, timeout=5)
+            else:
+                data = result['data']
+                for ticker in tickers:
+                    try:
+                        if len(tickers) == 1:
+                            close_price = data['Close'].iloc[-1]
+                        else:
+                            close_price = data[ticker]['Close'].iloc[-1]
+                        prices[ticker] = float(close_price)
+                    except (KeyError, IndexError):
+                        prices[ticker] = None
+                
+        except Exception as e:
+            print(f"Batch fetch failed: {e}")
+            # Fallback to individual fetches
+            for ticker in tickers:
+                prices[ticker] = self.fetch_from_api(ticker, timeout=5)
+        
+        return prices
     
     def cache_price_data(self, ticker, price_date, price, is_intraday):
         price_history = PriceHistory.query.filter_by(
