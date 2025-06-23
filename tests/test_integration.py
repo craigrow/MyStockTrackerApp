@@ -432,8 +432,12 @@ class TestPriceServiceIntegration:
             mock_ticker_instance.history.return_value = mock_hist
             mock_ticker.return_value = mock_ticker_instance
             
-            # Should fetch from API due to stale cache
+            # Should use stale cache by default (optimization)
             current_price = price_service.get_current_price(ticker)
+            assert current_price == 140.00
+            
+            # Should fetch from API when explicitly requested
+            current_price = price_service.get_current_price(ticker, use_stale=False)
             assert current_price == 155.00
             
             # Verify cache was updated
