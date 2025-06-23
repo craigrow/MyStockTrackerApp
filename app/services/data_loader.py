@@ -17,17 +17,32 @@ class DataLoader:
                     price_str = row.get('Price', '').strip().replace('$', '').replace(',', '')
                     shares_str = row.get('Shares', '').strip()
                     
-                    transaction = StockTransaction(
+                    ticker = row.get('Ticker', '').strip().upper()
+                    transaction_date = datetime.strptime(row.get('Date', '').strip(), '%Y-%m-%d').date()
+                    price_per_share = float(price_str)
+                    shares = float(shares_str)
+                    
+                    # Check for duplicate
+                    existing = StockTransaction.query.filter_by(
                         portfolio_id=portfolio_id,
-                        ticker=row.get('Ticker', '').strip().upper(),
-                        transaction_type=row.get('Type', '').strip().upper(),
-                        date=datetime.strptime(row.get('Date', '').strip(), '%Y-%m-%d').date(),
-                        price_per_share=float(price_str),
-                        shares=float(shares_str),
-                        total_value=float(price_str) * float(shares_str)
-                    )
-                    db.session.add(transaction)
-                    imported_count += 1
+                        ticker=ticker,
+                        date=transaction_date,
+                        price_per_share=price_per_share,
+                        shares=shares
+                    ).first()
+                    
+                    if not existing:
+                        transaction = StockTransaction(
+                            portfolio_id=portfolio_id,
+                            ticker=ticker,
+                            transaction_type=row.get('Type', '').strip().upper(),
+                            date=transaction_date,
+                            price_per_share=price_per_share,
+                            shares=shares,
+                            total_value=price_per_share * shares
+                        )
+                        db.session.add(transaction)
+                        imported_count += 1
                 else:
                     failed_rows.append(f"Row {i+1}: {', '.join(errors)}")
             except Exception as e:
@@ -63,15 +78,26 @@ class DataLoader:
                     
                     # Clean amount (remove $ signs)
                     amount_str = row.get('Amount', '').strip().replace('$', '').replace(',', '')
+                    ticker = row.get('Ticker', '').strip().upper()
+                    total_amount = float(amount_str)
                     
-                    dividend = Dividend(
+                    # Check for duplicate
+                    existing = Dividend.query.filter_by(
                         portfolio_id=portfolio_id,
-                        ticker=row.get('Ticker', '').strip().upper(),
+                        ticker=ticker,
                         payment_date=payment_date,
-                        total_amount=float(amount_str)
-                    )
-                    db.session.add(dividend)
-                    imported_count += 1
+                        total_amount=total_amount
+                    ).first()
+                    
+                    if not existing:
+                        dividend = Dividend(
+                            portfolio_id=portfolio_id,
+                            ticker=ticker,
+                            payment_date=payment_date,
+                            total_amount=total_amount
+                        )
+                        db.session.add(dividend)
+                        imported_count += 1
                 else:
                     failed_rows.append(f"Row {i+1}: {', '.join(errors)}")
             except Exception as e:
