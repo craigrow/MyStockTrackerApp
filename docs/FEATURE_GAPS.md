@@ -9,3 +9,4 @@ Features identified during testing that need to be addressed:
 5. ✅ IMPLEMENTED: The user needs a way of viewing all of the transactions (buy, sell, dividend) that are in the portfolio.
 6. Large CSV imports (100+ rows) cause production timeouts due to extensive price fetching during import. Need to implement asynchronous import or batch processing.
 7. ✅ FIXED: Today vs Market box was showing incorrect date range (Friday-to-yesterday instead of yesterday-to-now when market open). Fixed date calculation logic.
+8. Application error on initial page load after deployment - requires page reload to fix. Possible Heroku dyno cold start or database connection issue.
