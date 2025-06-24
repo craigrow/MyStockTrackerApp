@@ -266,7 +266,14 @@ def calculate_portfolio_stats(portfolio, portfolio_service, price_service):
     
     for ticker, shares in holdings.items():
         try:
-            current_price = price_service.get_current_price(ticker, use_stale=True)
+            # When market is closed, use closing prices; when open, use current prices
+            market_is_open = is_market_open_now()
+            if market_is_open:
+                current_price = price_service.get_current_price(ticker, use_stale=True)
+            else:
+                # Market closed - use today's closing price, not intraday
+                current_price = get_historical_price(ticker, get_last_market_date())
+            
             if current_price:
                 current_value += shares * current_price
         except:
@@ -698,9 +705,15 @@ def calculate_current_etf_equivalent(portfolio_id, portfolio_service, price_serv
                 etf_shares = transaction.total_value / etf_price_on_buy_date
                 total_etf_shares += etf_shares
     
-    # Get current ETF price
+    # Get current ETF price - use closing price when market closed
     try:
-        current_etf_price = price_service.get_current_price(etf_ticker)
+        market_is_open = is_market_open_now()
+        if market_is_open:
+            current_etf_price = price_service.get_current_price(etf_ticker)
+        else:
+            # Market closed - use today's closing price
+            current_etf_price = get_historical_price(etf_ticker, get_last_market_date())
+        
         if current_etf_price:
             return total_etf_shares * current_etf_price
     except:
