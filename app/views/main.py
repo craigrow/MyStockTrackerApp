@@ -63,7 +63,8 @@ def get_etf_performance(ticker, purchase_date):
             'purchase_price': purchase_price,
             'current_price': current_price,
             'performance': performance,
-            'success': True
+            'success': True,
+            'debug': f'Performance calc: ({current_price} - {purchase_price}) / {purchase_price} * 100 = {performance:.4f}%'
         })
     except Exception as e:
         return jsonify({
