@@ -91,8 +91,8 @@
                             <td class="current-value" data-ticker="{{ transaction.ticker }}" data-shares="{{ transaction.shares }}">Loading...</td>
                             <td class="gain-loss" data-cost="{{ transaction.total_value }}">-</td>
                             <td class="gain-percent">-</td>
-                            <td class="vs-qqq">-</td>
-                            <td class="vs-voo">-</td>
+                            <td class="vs-qqq" data-purchase-date="{{ transaction.date.strftime('%Y-%m-%d') }}">-</td>
+                            <td class="vs-voo" data-purchase-date="{{ transaction.date.strftime('%Y-%m-%d') }}">-</td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary me-1" onclick="editTransaction('{{ transaction.id }}')">
                                     <i class="fas fa-edit"></i>
@@ -252,9 +252,35 @@ async function loadCurrentPrices() {
         cell.textContent = currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : 'N/A';
     });
     
-    // Get ETF performance data (mock for now)
-    const qqq_performance = 15.2; // Mock QQQ performance %
-    const voo_performance = 12.8; // Mock VOO performance %
+    // Get unique purchase dates for ETF performance calculations
+    const purchaseDates = [...new Set(Array.from(document.querySelectorAll('.vs-qqq')).map(cell => cell.dataset.purchaseDate))];
+    
+    // Get ETF performance for each unique purchase date
+    const etfPerformancePromises = [];
+    purchaseDates.forEach(date => {
+        etfPerformancePromises.push(
+            fetch(`/api/etf-performance/QQQ/${date}`).then(r => r.json()).catch(() => ({performance: 0, ticker: 'QQQ', purchase_date: date})),
+            fetch(`/api/etf-performance/VOO/${date}`).then(r => r.json()).catch(() => ({performance: 0, ticker: 'VOO', purchase_date: date}))
+        );
+    });
+    
+    const etfPerformances = await Promise.all(etfPerformancePromises);
+    
+    // Create performance maps by date
+    const qqqPerformanceMap = {};
+    const vooPerformanceMap = {};
+    
+    etfPerformances.forEach(perf => {
+        if (perf.ticker === 'QQQ') {
+            qqqPerformanceMap[perf.purchase_date] = perf.performance || 0;
+        } else if (perf.ticker === 'VOO') {
+            vooPerformanceMap[perf.purchase_date] = perf.performance || 0;
+            // Debug logging for VOO on 2025-06-17
+            if (perf.purchase_date === '2025-06-17') {
+                console.log('VOO Performance Debug:', perf);
+            }
+        }
+    });
     
     // Update each row with calculations
     currentValueCells.forEach(cell => {
@@ -284,15 +310,26 @@ async function loadCurrentPrices() {
         
         // Update vs QQQ
         const vsQQQCell = row.querySelector('.vs-qqq');
-        const vsQQQ = gainPercent - qqq_performance;
+        const purchaseDate = vsQQQCell.dataset.purchaseDate;
+        const qqqPerformance = qqqPerformanceMap[purchaseDate] || 0;
+        const vsQQQ = gainPercent - qqqPerformance;
         vsQQQCell.textContent = currentValue > 0 ? `${vsQQQ.toFixed(2)}%` : 'N/A';
         vsQQQCell.className = `vs-qqq ${vsQQQ >= 0 ? 'text-success' : 'text-danger'}`;
         
         // Update vs VOO
         const vsVOOCell = row.querySelector('.vs-voo');
-        const vsVOO = gainPercent - voo_performance;
+        const vooPerformance = vooPerformanceMap[purchaseDate] || 0;
+        const vsVOO = gainPercent - vooPerformance;
         vsVOOCell.textContent = currentValue > 0 ? `${vsVOO.toFixed(2)}%` : 'N/A';
         vsVOOCell.className = `vs-voo ${vsVOO >= 0 ? 'text-success' : 'text-danger'}`;
+        
+        // Debug logging for CPNG on 2025-06-17
+        if (ticker === 'CPNG' && purchaseDate === '2025-06-17') {
+            console.log(`CPNG Debug:`);
+            console.log(`Stock gain: ${gainPercent.toFixed(4)}%`);
+            console.log(`VOO performance: ${vooPerformance.toFixed(4)}%`);
+            console.log(`vs VOO: ${vsVOO.toFixed(4)}%`);
+        }
     });
 }
 
