@@ -675,18 +675,9 @@ def get_last_market_date():
     """Get the last market trading date"""
     today = date.today()
     
-    # If today is a weekday and market hours have passed, use today
-    # Otherwise use the previous weekday
+    # If today is a weekday, use today (whether market is open or closed)
     if today.weekday() < 5:  # Monday = 0, Friday = 4
-        if is_market_open_now():
-            # Market is open, use previous day
-            days_back = 1
-            if today.weekday() == 0:  # Monday
-                days_back = 3  # Go back to Friday
-            return today - timedelta(days=days_back)
-        else:
-            # Market is closed, use today if it's a weekday
-            return today
+        return today
     else:
         # Weekend, go back to Friday
         days_back = today.weekday() - 4  # Friday = 4
