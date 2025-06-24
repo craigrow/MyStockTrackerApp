@@ -2,7 +2,7 @@ import pytest
 from datetime import date, datetime
 from app import create_app, db
 from app.models.portfolio import Portfolio
-from app.models.stock import StockTransaction
+from app.models.portfolio import StockTransaction
 from app.models.price import PriceHistory
 from app.services.portfolio_service import PortfolioService
 
@@ -67,22 +67,22 @@ class TestTransactionsPage:
             # Add price data
             prices = [
                 # CPNG prices
-                PriceHistory('CPNG', date(2025, 6, 17), 23.81, False, datetime.now(), datetime.now()),
-                PriceHistory('CPNG', date.today(), 24.35, True, datetime.now(), datetime.now()),
+                PriceHistory(ticker='CPNG', date=date(2025, 6, 17), close_price=23.81, is_intraday=False, price_timestamp=datetime.now(), last_updated=datetime.now()),
+                PriceHistory(ticker='CPNG', date=date.today(), close_price=24.35, is_intraday=True, price_timestamp=datetime.now(), last_updated=datetime.now()),
                 
                 # AAPL prices
-                PriceHistory('AAPL', date(2025, 5, 15), 180.00, False, datetime.now(), datetime.now()),
-                PriceHistory('AAPL', date.today(), 220.50, True, datetime.now(), datetime.now()),
+                PriceHistory(ticker='AAPL', date=date(2025, 5, 15), close_price=180.00, is_intraday=False, price_timestamp=datetime.now(), last_updated=datetime.now()),
+                PriceHistory(ticker='AAPL', date=date.today(), close_price=220.50, is_intraday=True, price_timestamp=datetime.now(), last_updated=datetime.now()),
                 
                 # VOO prices
-                PriceHistory('VOO', date(2025, 6, 17), 549.35, False, datetime.now(), datetime.now()),
-                PriceHistory('VOO', date(2025, 5, 15), 540.00, False, datetime.now(), datetime.now()),
-                PriceHistory('VOO', date.today(), 559.95, True, datetime.now(), datetime.now()),
+                PriceHistory(ticker='VOO', date=date(2025, 6, 17), close_price=549.35, is_intraday=False, price_timestamp=datetime.now(), last_updated=datetime.now()),
+                PriceHistory(ticker='VOO', date=date(2025, 5, 15), close_price=540.00, is_intraday=False, price_timestamp=datetime.now(), last_updated=datetime.now()),
+                PriceHistory(ticker='VOO', date=date.today(), close_price=559.95, is_intraday=True, price_timestamp=datetime.now(), last_updated=datetime.now()),
                 
                 # QQQ prices
-                PriceHistory('QQQ', date(2025, 6, 17), 450.00, False, datetime.now(), datetime.now()),
-                PriceHistory('QQQ', date(2025, 5, 15), 440.00, False, datetime.now(), datetime.now()),
-                PriceHistory('QQQ', date.today(), 465.00, True, datetime.now(), datetime.now()),
+                PriceHistory(ticker='QQQ', date=date(2025, 6, 17), close_price=450.00, is_intraday=False, price_timestamp=datetime.now(), last_updated=datetime.now()),
+                PriceHistory(ticker='QQQ', date=date(2025, 5, 15), close_price=440.00, is_intraday=False, price_timestamp=datetime.now(), last_updated=datetime.now()),
+                PriceHistory(ticker='QQQ', date=date.today(), close_price=465.00, is_intraday=True, price_timestamp=datetime.now(), last_updated=datetime.now()),
             ]
             
             for price in prices:
