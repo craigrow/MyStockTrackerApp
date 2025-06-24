@@ -6,7 +6,8 @@ Features identified during testing that need to be addressed:
 2. In addition to total gain, total invested, and cash balance, there should be a Total Dividends Received indicator.
 3. If there is not price data for a specific stock, do not include it in the portfolio and show an error to the user.
 4. Enable users to edit and/or delete transactions. (UI placeholders implemented, backend functionality needed)
-5. ✅ IMPLEMENTED: The user needs a way of viewing all of the transactions (buy, sell, dividend) that are in the portfolio.
+9. ✅ IMPLEMENTED: ETF performance comparisons with time-period matching from actual purchase dates (vs QQQ and vs VOO columns).
+5. ✅ IMPLEMENTED: The user needs a way of viewing all of the transactions (buy, sell, dividend) that are in the portfolio. Comprehensive transactions page with performance calculations and ETF comparisons.
 6. Large CSV imports (100+ rows) cause production timeouts due to extensive price fetching during import. Need to implement asynchronous import or batch processing.
 7. ✅ FIXED: Today vs Market box was showing incorrect date range (Friday-to-yesterday instead of yesterday-to-now when market open). Fixed date calculation logic.
 8. Application error on initial page load after deployment - requires page reload to fix. Possible Heroku dyno cold start or database connection issue.
