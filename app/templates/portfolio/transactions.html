@@ -206,8 +206,8 @@ function sortTable(columnIndex) {
 // Initialize filter on page load
 document.addEventListener('DOMContentLoaded', function() {
     setFilter('all');
-    // Set initial sort by date (descending)
-    sortDirection[0] = false;
+    // Set initial sort by date (descending - most recent first)
+    sortDirection[0] = true;
     sortTable(0);
 });
 
