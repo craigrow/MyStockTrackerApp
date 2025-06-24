@@ -61,13 +61,14 @@
                             <th onclick="sortTable(1)" style="cursor: pointer;">Ticker <i class="fas fa-sort"></i></th>
                             <th onclick="sortTable(2)" style="cursor: pointer;">Type <i class="fas fa-sort"></i></th>
                             <th onclick="sortTable(3)" style="cursor: pointer;">Shares <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(4)" style="cursor: pointer;">Price <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(5)" style="cursor: pointer;">Cost Basis <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(6)" style="cursor: pointer;">Current Value <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(7)" style="cursor: pointer;">$ Gain/Loss <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(8)" style="cursor: pointer;">% Gain <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(9)" style="cursor: pointer;">vs QQQ <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(10)" style="cursor: pointer;">vs VOO <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)" style="cursor: pointer;">Purchase Price <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)" style="cursor: pointer;">Current Price <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(6)" style="cursor: pointer;">Cost Basis <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(7)" style="cursor: pointer;">Current Value <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(8)" style="cursor: pointer;">$ Gain/Loss <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(9)" style="cursor: pointer;">% Gain <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(10)" style="cursor: pointer;">vs QQQ <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(11)" style="cursor: pointer;">vs VOO <i class="fas fa-sort"></i></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -85,6 +86,7 @@
                             </td>
                             <td>{{ "%.4f"|format(transaction.shares) }}</td>
                             <td>${{ "%.2f"|format(transaction.price_per_share) }}</td>
+                            <td class="current-price" data-ticker="{{ transaction.ticker }}">Loading...</td>
                             <td><strong>${{ "%.2f"|format(transaction.total_value) }}</strong></td>
                             <td class="current-value" data-ticker="{{ transaction.ticker }}" data-shares="{{ transaction.shares }}">Loading...</td>
                             <td class="gain-loss" data-cost="{{ transaction.total_value }}">-</td>
@@ -193,7 +195,7 @@ function sortTable(columnIndex) {
             const aDate = new Date(aValue);
             const bDate = new Date(bValue);
             return ascending ? aDate - bDate : bDate - aDate;
-        } else if (columnIndex >= 3 && columnIndex <= 10) { // Numbers
+        } else if (columnIndex >= 3 && columnIndex <= 11) { // Numbers
             const aNum = parseFloat(aValue.replace(/[$,]/g, ''));
             const bNum = parseFloat(bValue.replace(/[$,]/g, ''));
             return ascending ? aNum - bNum : bNum - aNum;
@@ -225,6 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadCurrentPrices() {
     const currentValueCells = document.querySelectorAll('.current-value');
+    const currentPriceCells = document.querySelectorAll('.current-price');
     const tickers = [...new Set(Array.from(currentValueCells).map(cell => cell.dataset.ticker))];
     
     // Get current prices for all unique tickers
@@ -241,6 +244,13 @@ async function loadCurrentPrices() {
     
     const prices = await Promise.all(pricePromises);
     const priceMap = Object.fromEntries(prices.map(p => [p.ticker, p.price]));
+    
+    // Update current price cells
+    currentPriceCells.forEach(cell => {
+        const ticker = cell.dataset.ticker;
+        const currentPrice = priceMap[ticker] || 0;
+        cell.textContent = currentPrice > 0 ? `$${currentPrice.toFixed(2)}` : 'N/A';
+    });
     
     // Get ETF performance data (mock for now)
     const qqq_performance = 15.2; // Mock QQQ performance %
