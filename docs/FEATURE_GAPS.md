@@ -6,11 +6,13 @@ Features identified during testing that need to be addressed:
 2. In addition to total gain, total invested, and cash balance, there should be a Total Dividends Received indicator.
 3. If there is not price data for a specific stock, do not include it in the portfolio and show an error to the user.
 4. Enable users to edit and/or delete transactions. (UI placeholders implemented, backend functionality needed)
-9. ✅ IMPLEMENTED: ETF performance comparisons with time-period matching from actual purchase dates (vs QQQ and vs VOO columns).
-5. ✅ IMPLEMENTED: The user needs a way of viewing all of the transactions (buy, sell, dividend) that are in the portfolio. Comprehensive transactions page with performance calculations and ETF comparisons.
-6. Large CSV imports (100+ rows) cause production timeouts due to extensive price fetching during import. Need to implement asynchronous import or batch processing.
-7. ✅ FIXED: Today vs Market box was showing incorrect date range (Friday-to-yesterday instead of yesterday-to-now when market open). Fixed date calculation logic.
-8. Application error on initial page load after deployment - requires page reload to fix. Possible Heroku dyno cold start or database connection issue.
-9. Need to incorporate stock splits.
-10. When we switch between views; from dashboard to transactions for example; we should persiste the portfolio that is being viewed, not switch portfolios.
-11. We should have settings to determine which ETFs to use as comparisons on a per portfolio basis.
+5. ✅ IMPLEMENTED: ETF performance comparisons with time-period matching from actual purchase dates (vs QQQ and vs VOO columns).
+6. ✅ IMPLEMENTED: The user needs a way of viewing all of the transactions (buy, sell, dividend) that are in the portfolio. Comprehensive transactions page with performance calculations and ETF comparisons.
+7. Large CSV imports (100+ rows) cause production timeouts due to extensive price fetching during import. Need to implement asynchronous import or batch processing.
+8. ✅ FIXED: Today vs Market box was showing incorrect date range (Friday-to-yesterday instead of yesterday-to-now when market open). Fixed date calculation logic.
+9. ✅ FIXED: Portfolio Value and Total Gain/Loss now show closing prices when market is closed instead of stale intraday prices.
+10. Application error on initial page load after deployment - requires page reload to fix. Possible Heroku dyno cold start or database connection issue.
+11. Need to incorporate stock splits.
+12. When we switch between views; from dashboard to transactions for example; we should persiste the portfolio that is being viewed, not switch portfolios.
+13. We should have settings to determine which ETFs to use as comparisons on a per portfolio basis.
+14. Let's create a cash log. It will show all of the assumed cash inflows and outflows for the portfolio. Then, we should enable the user to manually enter inflows and outflows.
