@@ -89,11 +89,11 @@ class TestTransactionsPage:
                 db.session.add(price)
             
             db.session.commit()
-            return portfolio
+            return 'test-portfolio'  # Return ID string instead of object
     
     def test_transactions_page_loads(self, client, sample_portfolio):
         """Test that transactions page loads successfully"""
-        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio.id}')
+        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio}')
         assert response.status_code == 200
         assert b'Stock Transactions' in response.data
         assert b'CPNG' in response.data
@@ -161,7 +161,7 @@ class TestTransactionsPage:
     
     def test_transactions_table_structure(self, client, sample_portfolio):
         """Test that transactions table has correct structure"""
-        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio.id}')
+        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio}')
         assert response.status_code == 200
         
         # Check for required table headers
@@ -177,7 +177,7 @@ class TestTransactionsPage:
     
     def test_transaction_data_attributes(self, client, sample_portfolio):
         """Test that transaction rows have correct data attributes"""
-        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio.id}')
+        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio}')
         assert response.status_code == 200
         
         # Check for data attributes needed for JavaScript calculations
@@ -188,7 +188,7 @@ class TestTransactionsPage:
     
     def test_quick_filters_present(self, client, sample_portfolio):
         """Test that quick filter buttons are present"""
-        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio.id}')
+        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio}')
         assert response.status_code == 200
         
         assert b'Quick Filters' in response.data
@@ -198,7 +198,7 @@ class TestTransactionsPage:
     
     def test_sortable_columns(self, client, sample_portfolio):
         """Test that columns are sortable"""
-        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio.id}')
+        response = client.get(f'/portfolio/transactions?portfolio_id={sample_portfolio}')
         assert response.status_code == 200
         
         # Check for sortable column headers
@@ -210,7 +210,7 @@ class TestTransactionsPage:
         """Test portfolio service returns correct transaction data"""
         with app.app_context():
             portfolio_service = PortfolioService()
-            transactions = portfolio_service.get_portfolio_transactions(sample_portfolio.id)
+            transactions = portfolio_service.get_portfolio_transactions(sample_portfolio)
             
             assert len(transactions) == 2
             
