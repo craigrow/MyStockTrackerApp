@@ -821,19 +821,16 @@ def calculate_etf_daily_change_for_portfolio(ticker, portfolio_id, portfolio_ser
         last_trading_day = get_last_market_date()
         previous_trading_day = get_previous_trading_day(last_trading_day)
         
-        # Get ETF price changes
-        current_price_record = PriceHistory.query.filter(
-            PriceHistory.ticker == ticker,
-            PriceHistory.date <= last_trading_day
-        ).order_by(PriceHistory.date.desc()).first()
+        # Get ETF price changes - use cached current prices (may be intraday if available)
+        current_price = price_service.get_current_price(ticker, use_stale=True)  # Use cached for speed
         
+        # Always use previous day's closing price for comparison
         previous_price_record = PriceHistory.query.filter(
             PriceHistory.ticker == ticker,
             PriceHistory.date < last_trading_day
         ).order_by(PriceHistory.date.desc()).first()
         
-        if current_price_record and previous_price_record:
-            current_price = current_price_record.close_price
+        if current_price and previous_price_record:
             previous_price = previous_price_record.close_price
             percentage_change = ((current_price - previous_price) / previous_price) * 100
             
@@ -872,20 +869,21 @@ def calculate_portfolio_daily_change(portfolio_id, today, yesterday, portfolio_s
         
         from app.models.price import PriceHistory
         
+        # Check if market is open to determine price source
+        market_is_open = is_market_open_now()
+        
         for ticker, shares in holdings.items():
-            # Get cached prices - use closest available dates
-            current_price_record = PriceHistory.query.filter(
-                PriceHistory.ticker == ticker,
-                PriceHistory.date <= last_trading_day
-            ).order_by(PriceHistory.date.desc()).first()
+            # For current value: use cached current prices (may be intraday if market open)
+            current_price = price_service.get_current_price(ticker, use_stale=True)  # Use cached for speed
+            if current_price:
+                current_value += shares * current_price
             
+            # For previous value: always use previous day's closing price
             previous_price_record = PriceHistory.query.filter(
                 PriceHistory.ticker == ticker,
                 PriceHistory.date < last_trading_day
             ).order_by(PriceHistory.date.desc()).first()
             
-            if current_price_record:
-                current_value += shares * current_price_record.close_price
             if previous_price_record:
                 yesterday_value += shares * previous_price_record.close_price
         
