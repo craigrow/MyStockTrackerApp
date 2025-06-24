@@ -15,15 +15,13 @@
     </div>
 </div>
 
-<!-- Portfolio Selection -->
-{% if portfolios|length > 1 %}
+<!-- Portfolio Selection and Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <div class="row align-items-center">
-            <div class="col-md-3">
+            {% if portfolios|length > 1 %}
+            <div class="col-md-4">
                 <label for="portfolioSelect" class="form-label mb-0"><strong>Portfolio:</strong></label>
-            </div>
-            <div class="col-md-6">
                 <select class="form-select" id="portfolioSelect" onchange="changePortfolio()">
                     {% for portfolio in portfolios %}
                     <option value="{{ portfolio.id }}" {% if current_portfolio and portfolio.id == current_portfolio.id %}selected{% endif %}>
@@ -32,10 +30,26 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
+            <div class="col-md-4">
+                <label for="filterSelect" class="form-label mb-0"><strong>Filter:</strong></label>
+                <select class="form-select" id="filterSelect" onchange="applyFilter()">
+                    <option value="all">Show All Transactions</option>
+                    <option value="buy">Buy Transactions Only</option>
+                    <option value="sell">Sell Transactions Only</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label mb-0"><strong>Quick Filters:</strong></label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="setFilter('all')">All</button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setFilter('buy')">Buys</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setFilter('sell')">Sells</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
 
 {% if current_portfolio %}
     <!-- Summary Stats -->
@@ -51,16 +65,16 @@
         <div class="col-md-4">
             <div class="card bg-success text-white">
                 <div class="card-body text-center">
-                    <h5 class="card-title">Total Dividends</h5>
-                    <h3>{{ dividends|length }}</h3>
+                    <h5 class="card-title">Buy Transactions</h5>
+                    <h3>{{ transactions|selectattr('transaction_type', 'equalto', 'BUY')|list|length }}</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card bg-info text-white">
+            <div class="card bg-danger text-white">
                 <div class="card-body text-center">
-                    <h5 class="card-title">Total Records</h5>
-                    <h3>{{ (transactions|length) + (dividends|length) }}</h3>
+                    <h5 class="card-title">Sell Transactions</h5>
+                    <h3>{{ transactions|selectattr('transaction_type', 'equalto', 'SELL')|list|length }}</h3>
                 </div>
             </div>
         </div>
@@ -68,7 +82,7 @@
 
     <!-- Transactions Table -->
     {% if transactions %}
-    <div class="card mb-4">
+    <div class="card mb-4" id="transactionsCard">
         <div class="card-header">
             <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Stock Transactions</h5>
         </div>
@@ -88,7 +102,7 @@
                     </thead>
                     <tbody>
                         {% for transaction in transactions|reverse %}
-                        <tr>
+                        <tr class="transaction-row" data-type="{{ transaction.transaction_type.lower() }}">
                             <td>{{ transaction.date.strftime('%m/%d/%Y') }}</td>
                             <td><span class="badge bg-secondary">{{ transaction.ticker }}</span></td>
                             <td>
@@ -118,57 +132,16 @@
     </div>
     {% endif %}
 
-    <!-- Dividends Table -->
-    {% if dividends %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Dividend Payments</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th>
-                            <th>Ticker</th>
-                            <th>Amount</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for dividend in dividends|reverse %}
-                        <tr>
-                            <td>{{ dividend.payment_date.strftime('%m/%d/%Y') }}</td>
-                            <td><span class="badge bg-secondary">{{ dividend.ticker }}</span></td>
-                            <td><strong class="text-success">${{ "%.2f"|format(dividend.total_amount) }}</strong></td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editDividend('{{ dividend.id }}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteDividend('{{ dividend.id }}', '{{ dividend.ticker }}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 
-    {% if not transactions and not dividends %}
+
+    {% if not transactions %}
     <div class="card">
         <div class="card-body text-center py-5">
             <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
             <h4 class="text-muted">No Transactions Yet</h4>
-            <p class="text-muted mb-4">Start tracking your investments by adding your first transaction or dividend.</p>
-            <a href="{{ url_for('portfolio.add_transaction', portfolio_id=current_portfolio.id) }}" class="btn btn-primary me-2">
+            <p class="text-muted mb-4">Start tracking your investments by adding your first transaction.</p>
+            <a href="{{ url_for('portfolio.add_transaction', portfolio_id=current_portfolio.id) }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Add Transaction
-            </a>
-            <a href="{{ url_for('portfolio.add_dividend', portfolio_id=current_portfolio.id) }}" class="btn btn-success">
-                <i class="fas fa-dollar-sign me-2"></i>Add Dividend
             </a>
         </div>
     </div>
@@ -194,6 +167,48 @@ function changePortfolio() {
     window.location.href = `{{ url_for('portfolio.transactions') }}?portfolio_id=${portfolioId}`;
 }
 
+function applyFilter() {
+    const filterValue = document.getElementById('filterSelect').value;
+    setFilter(filterValue);
+}
+
+function setFilter(filterType) {
+    // Update dropdown
+    document.getElementById('filterSelect').value = filterType;
+    
+    // Update button states
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show/hide elements based on filter
+    const transactionRows = document.querySelectorAll('.transaction-row');
+    
+    switch(filterType) {
+        case 'all':
+            transactionRows.forEach(row => row.style.display = 'table-row');
+            document.querySelector('[onclick="setFilter(\'all\')"]').classList.add('active');
+            break;
+        case 'buy':
+            transactionRows.forEach(row => {
+                row.style.display = row.dataset.type === 'buy' ? 'table-row' : 'none';
+            });
+            document.querySelector('[onclick="setFilter(\'buy\')"]').classList.add('active');
+            break;
+        case 'sell':
+            transactionRows.forEach(row => {
+                row.style.display = row.dataset.type === 'sell' ? 'table-row' : 'none';
+            });
+            document.querySelector('[onclick="setFilter(\'sell\')"]').classList.add('active');
+            break;
+    }
+}
+
+// Initialize filter on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setFilter('all');
+});
+
 function editTransaction(transactionId) {
     // TODO: Implement edit functionality
     alert('Edit functionality coming soon!');
@@ -206,16 +221,6 @@ function deleteTransaction(transactionId, ticker, type) {
     }
 }
 
-function editDividend(dividendId) {
-    // TODO: Implement edit functionality
-    alert('Edit functionality coming soon!');
-}
 
-function deleteDividend(dividendId, ticker) {
-    if (confirm(`Are you sure you want to delete this dividend payment for ${ticker}?`)) {
-        // TODO: Implement delete functionality
-        alert('Delete functionality coming soon!');
-    }
-}
 </script>
 {% endblock %}
