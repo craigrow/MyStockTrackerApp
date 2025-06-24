@@ -17,6 +17,25 @@ def price_update_progress():
     progress = background_updater.get_progress()
     return jsonify(progress)
 
+@main_blueprint.route('/api/current-price/<ticker>')
+def get_current_price(ticker):
+    """Get current price for a ticker"""
+    try:
+        price_service = PriceService()
+        price = price_service.get_current_price(ticker, use_stale=True)
+        return jsonify({
+            'ticker': ticker,
+            'price': price,
+            'success': True
+        })
+    except Exception as e:
+        return jsonify({
+            'ticker': ticker,
+            'price': None,
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @main_blueprint.route('/api/refresh-holdings/<portfolio_id>')
 def refresh_holdings(portfolio_id):
     """Get refreshed holdings data"""

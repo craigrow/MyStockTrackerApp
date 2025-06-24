@@ -62,7 +62,12 @@
                             <th onclick="sortTable(2)" style="cursor: pointer;">Type <i class="fas fa-sort"></i></th>
                             <th onclick="sortTable(3)" style="cursor: pointer;">Shares <i class="fas fa-sort"></i></th>
                             <th onclick="sortTable(4)" style="cursor: pointer;">Price <i class="fas fa-sort"></i></th>
-                            <th onclick="sortTable(5)" style="cursor: pointer;">Total Value <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)" style="cursor: pointer;">Cost Basis <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(6)" style="cursor: pointer;">Current Value <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(7)" style="cursor: pointer;">$ Gain/Loss <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(8)" style="cursor: pointer;">% Gain <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(9)" style="cursor: pointer;">vs QQQ <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(10)" style="cursor: pointer;">vs VOO <i class="fas fa-sort"></i></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -81,6 +86,11 @@
                             <td>{{ "%.4f"|format(transaction.shares) }}</td>
                             <td>${{ "%.2f"|format(transaction.price_per_share) }}</td>
                             <td><strong>${{ "%.2f"|format(transaction.total_value) }}</strong></td>
+                            <td class="current-value" data-ticker="{{ transaction.ticker }}" data-shares="{{ transaction.shares }}">Loading...</td>
+                            <td class="gain-loss" data-cost="{{ transaction.total_value }}">-</td>
+                            <td class="gain-percent">-</td>
+                            <td class="vs-qqq">-</td>
+                            <td class="vs-voo">-</td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary me-1" onclick="editTransaction('{{ transaction.id }}')">
                                     <i class="fas fa-edit"></i>
@@ -183,7 +193,7 @@ function sortTable(columnIndex) {
             const aDate = new Date(aValue);
             const bDate = new Date(bValue);
             return ascending ? aDate - bDate : bDate - aDate;
-        } else if (columnIndex === 3 || columnIndex === 4 || columnIndex === 5) { // Numbers
+        } else if (columnIndex >= 3 && columnIndex <= 10) { // Numbers
             const aNum = parseFloat(aValue.replace(/[$,]/g, ''));
             const bNum = parseFloat(bValue.replace(/[$,]/g, ''));
             return ascending ? aNum - bNum : bNum - aNum;
@@ -209,7 +219,72 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set initial sort by date (descending - most recent first)
     sortDirection[0] = true;
     sortTable(0);
+    // Load current prices and calculate performance
+    loadCurrentPrices();
 });
+
+async function loadCurrentPrices() {
+    const currentValueCells = document.querySelectorAll('.current-value');
+    const tickers = [...new Set(Array.from(currentValueCells).map(cell => cell.dataset.ticker))];
+    
+    // Get current prices for all unique tickers
+    const pricePromises = tickers.map(async ticker => {
+        try {
+            const response = await fetch(`/api/current-price/${ticker}`);
+            const data = await response.json();
+            return { ticker, price: data.price || 0 };
+        } catch (error) {
+            console.error(`Error fetching price for ${ticker}:`, error);
+            return { ticker, price: 0 };
+        }
+    });
+    
+    const prices = await Promise.all(pricePromises);
+    const priceMap = Object.fromEntries(prices.map(p => [p.ticker, p.price]));
+    
+    // Get ETF performance data (mock for now)
+    const qqq_performance = 15.2; // Mock QQQ performance %
+    const voo_performance = 12.8; // Mock VOO performance %
+    
+    // Update each row with calculations
+    currentValueCells.forEach(cell => {
+        const ticker = cell.dataset.ticker;
+        const shares = parseFloat(cell.dataset.shares);
+        const currentPrice = priceMap[ticker] || 0;
+        const currentValue = shares * currentPrice;
+        
+        // Update current value
+        cell.textContent = currentValue > 0 ? `$${currentValue.toFixed(2)}` : 'N/A';
+        
+        // Update gain/loss calculations
+        const row = cell.parentElement;
+        const costBasis = parseFloat(row.querySelector('.gain-loss').dataset.cost);
+        const gainLoss = currentValue - costBasis;
+        const gainPercent = costBasis > 0 ? (gainLoss / costBasis) * 100 : 0;
+        
+        // Update gain/loss dollar amount
+        const gainLossCell = row.querySelector('.gain-loss');
+        gainLossCell.textContent = currentValue > 0 ? `$${gainLoss.toFixed(2)}` : 'N/A';
+        gainLossCell.className = `gain-loss ${gainLoss >= 0 ? 'text-success' : 'text-danger'}`;
+        
+        // Update gain percentage
+        const gainPercentCell = row.querySelector('.gain-percent');
+        gainPercentCell.textContent = currentValue > 0 ? `${gainPercent.toFixed(2)}%` : 'N/A';
+        gainPercentCell.className = `gain-percent ${gainPercent >= 0 ? 'text-success' : 'text-danger'}`;
+        
+        // Update vs QQQ
+        const vsQQQCell = row.querySelector('.vs-qqq');
+        const vsQQQ = gainPercent - qqq_performance;
+        vsQQQCell.textContent = currentValue > 0 ? `${vsQQQ.toFixed(2)}%` : 'N/A';
+        vsQQQCell.className = `vs-qqq ${vsQQQ >= 0 ? 'text-success' : 'text-danger'}`;
+        
+        // Update vs VOO
+        const vsVOOCell = row.querySelector('.vs-voo');
+        const vsVOO = gainPercent - voo_performance;
+        vsVOOCell.textContent = currentValue > 0 ? `${vsVOO.toFixed(2)}%` : 'N/A';
+        vsVOOCell.className = `vs-voo ${vsVOO >= 0 ? 'text-success' : 'text-danger'}`;
+    });
+}
 
 function editTransaction(transactionId) {
     // TODO: Implement edit functionality
