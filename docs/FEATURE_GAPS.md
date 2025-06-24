@@ -16,3 +16,4 @@ Features identified during testing that need to be addressed:
 12. When we switch between views; from dashboard to transactions for example; we should persiste the portfolio that is being viewed, not switch portfolios.
 13. We should have settings to determine which ETFs to use as comparisons on a per portfolio basis.
 14. Let's create a cash log. It will show all of the assumed cash inflows and outflows for the portfolio. Then, we should enable the user to manually enter inflows and outflows.
+15. App load is still a bad experience. What we want is, first, load the app with whatever cached data we have. Display a message: showing cached data from [DATE/time], refreshing data. Then, when you have fresh data, update everything and change the message to say, up to date as of [Date/time].
