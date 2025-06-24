@@ -32,14 +32,6 @@
             </div>
             {% endif %}
             <div class="col-md-4">
-                <label for="filterSelect" class="form-label mb-0"><strong>Filter:</strong></label>
-                <select class="form-select" id="filterSelect" onchange="applyFilter()">
-                    <option value="all">Show All Transactions</option>
-                    <option value="buy">Buy Transactions Only</option>
-                    <option value="sell">Sell Transactions Only</option>
-                </select>
-            </div>
-            <div class="col-md-4">
                 <label class="form-label mb-0"><strong>Quick Filters:</strong></label>
                 <div class="btn-group w-100" role="group">
                     <button type="button" class="btn btn-outline-primary btn-sm" onclick="setFilter('all')">All</button>
@@ -52,33 +44,7 @@
 </div>
 
 {% if current_portfolio %}
-    <!-- Summary Stats -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Total Transactions</h5>
-                    <h3>{{ transactions|length }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Buy Transactions</h5>
-                    <h3>{{ transactions|selectattr('transaction_type', 'equalto', 'BUY')|list|length }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card bg-danger text-white">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Sell Transactions</h5>
-                    <h3>{{ transactions|selectattr('transaction_type', 'equalto', 'SELL')|list|length }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Transactions Table -->
     {% if transactions %}
@@ -91,17 +57,17 @@
                 <table class="table table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
-                            <th>Date</th>
-                            <th>Ticker</th>
-                            <th>Type</th>
-                            <th>Shares</th>
-                            <th>Price</th>
-                            <th>Total Value</th>
+                            <th onclick="sortTable(0)" style="cursor: pointer;">Date <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(1)" style="cursor: pointer;">Ticker <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(2)" style="cursor: pointer;">Type <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(3)" style="cursor: pointer;">Shares <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)" style="cursor: pointer;">Price <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)" style="cursor: pointer;">Total Value <i class="fas fa-sort"></i></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for transaction in transactions|reverse %}
+                        {% for transaction in transactions|sort(attribute='date', reverse=true) %}
                         <tr class="transaction-row" data-type="{{ transaction.transaction_type.lower() }}">
                             <td>{{ transaction.date.strftime('%m/%d/%Y') }}</td>
                             <td><span class="badge bg-secondary">{{ transaction.ticker }}</span></td>
@@ -167,15 +133,9 @@ function changePortfolio() {
     window.location.href = `{{ url_for('portfolio.transactions') }}?portfolio_id=${portfolioId}`;
 }
 
-function applyFilter() {
-    const filterValue = document.getElementById('filterSelect').value;
-    setFilter(filterValue);
-}
+
 
 function setFilter(filterType) {
-    // Update dropdown
-    document.getElementById('filterSelect').value = filterType;
-    
     // Update button states
     document.querySelectorAll('.btn-group .btn').forEach(btn => {
         btn.classList.remove('active');
@@ -204,9 +164,51 @@ function setFilter(filterType) {
     }
 }
 
+let sortDirection = {};
+
+function sortTable(columnIndex) {
+    const table = document.querySelector('.table tbody');
+    const rows = Array.from(table.querySelectorAll('tr'));
+    
+    // Toggle sort direction
+    sortDirection[columnIndex] = !sortDirection[columnIndex];
+    const ascending = sortDirection[columnIndex];
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        
+        // Handle different data types
+        if (columnIndex === 0) { // Date
+            const aDate = new Date(aValue);
+            const bDate = new Date(bValue);
+            return ascending ? aDate - bDate : bDate - aDate;
+        } else if (columnIndex === 3 || columnIndex === 4 || columnIndex === 5) { // Numbers
+            const aNum = parseFloat(aValue.replace(/[$,]/g, ''));
+            const bNum = parseFloat(bValue.replace(/[$,]/g, ''));
+            return ascending ? aNum - bNum : bNum - aNum;
+        } else { // Text
+            return ascending ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        }
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => table.appendChild(row));
+    
+    // Update sort icons
+    document.querySelectorAll('th i.fas').forEach(icon => {
+        icon.className = 'fas fa-sort';
+    });
+    const currentIcon = document.querySelectorAll('th')[columnIndex].querySelector('i');
+    currentIcon.className = ascending ? 'fas fa-sort-up' : 'fas fa-sort-down';
+}
+
 // Initialize filter on page load
 document.addEventListener('DOMContentLoaded', function() {
     setFilter('all');
+    // Set initial sort by date (descending)
+    sortDirection[0] = false;
+    sortTable(0);
 });
 
 function editTransaction(transactionId) {
