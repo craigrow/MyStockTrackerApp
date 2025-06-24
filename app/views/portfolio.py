@@ -32,7 +32,30 @@ def create():
 
 @portfolio_blueprint.route('/transactions')
 def transactions():
-    return render_template('portfolio/transactions.html')
+    portfolio_service = PortfolioService()
+    portfolios = portfolio_service.get_all_portfolios()
+    
+    # Get current portfolio
+    portfolio_id = request.args.get('portfolio_id')
+    current_portfolio = None
+    all_transactions = []
+    all_dividends = []
+    
+    if portfolio_id:
+        current_portfolio = portfolio_service.get_portfolio(portfolio_id)
+        if current_portfolio:
+            all_transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
+            all_dividends = portfolio_service.get_portfolio_dividends(portfolio_id)
+    elif portfolios:
+        current_portfolio = portfolios[0]
+        all_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)
+        all_dividends = portfolio_service.get_portfolio_dividends(current_portfolio.id)
+    
+    return render_template('portfolio/transactions.html',
+                         portfolios=portfolios,
+                         current_portfolio=current_portfolio,
+                         transactions=all_transactions,
+                         dividends=all_dividends)
 
 @portfolio_blueprint.route('/dividends')
 def dividends():
