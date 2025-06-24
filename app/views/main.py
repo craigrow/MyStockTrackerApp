@@ -203,17 +203,11 @@ def dashboard():
                     portfolio_stats = get_cached_portfolio_stats(current_portfolio.id, market_date)
                     chart_data = get_cached_chart_data(current_portfolio.id, market_date)
                 
-                # Check if cached stats are valid (not zeros)
-                if not portfolio_stats or portfolio_stats.get('current_value', 0) == 0:
-                    print("[CACHE] Calculating fresh portfolio stats (no cache or zero values)")
-                    portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
-                    if is_market_closed and portfolio_stats:
-                        cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
-                else:
-                    print("[CACHE] Using cached base stats, calculating fresh daily changes")
-                    # Always recalculate daily changes for accuracy
-                    daily_changes = calculate_daily_changes(current_portfolio.id, portfolio_service, price_service)
-                    portfolio_stats.update(daily_changes)
+                # Force recalculation to apply new closing price logic (temporary)
+                print("[CACHE] Forcing fresh calculation for closing price fix")
+                portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
+                if is_market_closed and portfolio_stats:
+                    cache_portfolio_stats(current_portfolio.id, market_date, portfolio_stats)
                 
                 if not chart_data:
                     print("[CACHE] Calculating fresh chart data")
