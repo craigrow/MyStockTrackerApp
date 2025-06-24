@@ -2,7 +2,7 @@ import pytest
 from datetime import date, datetime
 from app import create_app, db
 from app.models.portfolio import Portfolio
-from app.models.transaction import StockTransaction
+from app.models.stock import StockTransaction
 from app.models.price import PriceHistory
 from app.services.portfolio_service import PortfolioService
 

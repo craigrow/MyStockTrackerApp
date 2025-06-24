@@ -26,6 +26,10 @@ class TestETFPerformanceAPI:
     def test_get_historical_price_cached(self, app):
         """Test getting historical price from cache"""
         with app.app_context():
+            # Clear any existing data first
+            db.session.query(PriceHistory).filter_by(ticker='VOO', date=date(2025, 6, 17)).delete()
+            db.session.commit()
+            
             # Add cached price
             price_record = PriceHistory(
                 ticker='VOO',
@@ -115,11 +119,12 @@ class TestETFPerformanceAPI:
     def test_etf_performance_missing_data(self, client, app):
         """Test ETF performance API with missing price data"""
         with app.app_context():
-            response = client.get('/api/etf-performance/VOO/2020-01-01')
+            # Use a date far in the past to avoid API calls
+            response = client.get('/api/etf-performance/NONEXISTENT/1990-01-01')
             assert response.status_code == 200
             
             data = response.get_json()
-            assert data['ticker'] == 'VOO'
+            assert data['ticker'] == 'NONEXISTENT'
             assert data['performance'] == 0  # Should default to 0 when no data
             assert data['success'] is True
     
@@ -169,17 +174,32 @@ class TestETFPerformanceAPI:
     def test_multiple_etf_performance_calls(self, client, app):
         """Test multiple ETF performance calculations"""
         with app.app_context():
-            # Add test data for multiple dates
+            # Clear existing data first
+            db.session.query(PriceHistory).filter_by(ticker='TEST').delete()
+            db.session.commit()
+            
+            # Add test data for multiple dates using TEST ticker to avoid conflicts
             dates_and_prices = [
                 (date(2025, 6, 17), 549.35, 559.95),
                 (date(2025, 5, 15), 540.00, 559.95),
                 (date(2025, 4, 10), 530.00, 559.95)
             ]
             
+            # Add current price once
+            current_record = PriceHistory(
+                ticker='TEST',
+                date=date.today(),
+                close_price=559.95,
+                is_intraday=True,
+                price_timestamp=datetime.now(),
+                last_updated=datetime.now()
+            )
+            db.session.add(current_record)
+            
             for purchase_date, purchase_price, current_price in dates_and_prices:
                 # Add purchase price
                 purchase_record = PriceHistory(
-                    ticker='VOO',
+                    ticker='TEST',
                     date=purchase_date,
                     close_price=purchase_price,
                     is_intraday=False,
@@ -187,24 +207,13 @@ class TestETFPerformanceAPI:
                     last_updated=datetime.now()
                 )
                 db.session.add(purchase_record)
-                
-                # Add current price (same for all)
-                current_record = PriceHistory(
-                    ticker='VOO',
-                    date=date.today(),
-                    close_price=current_price,
-                    is_intraday=True,
-                    price_timestamp=datetime.now(),
-                    last_updated=datetime.now()
-                )
-                db.session.add(current_record)
             
             db.session.commit()
             
             # Test each date
             for purchase_date, purchase_price, current_price in dates_and_prices:
                 date_str = purchase_date.strftime('%Y-%m-%d')
-                response = client.get(f'/api/etf-performance/VOO/{date_str}')
+                response = client.get(f'/api/etf-performance/TEST/{date_str}')
                 
                 assert response.status_code == 200
                 data = response.get_json()
