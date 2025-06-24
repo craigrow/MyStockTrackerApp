@@ -36,6 +36,43 @@ def get_current_price(ticker):
             'error': str(e)
         }), 500
 
+@main_blueprint.route('/api/etf-performance/<ticker>/<purchase_date>')
+def get_etf_performance(ticker, purchase_date):
+    """Get ETF performance from purchase date to now"""
+    try:
+        from datetime import datetime
+        price_service = PriceService()
+        
+        # Parse purchase date
+        purchase_date_obj = datetime.strptime(purchase_date, '%Y-%m-%d').date()
+        
+        # Get ETF price on purchase date
+        purchase_price = get_historical_price(ticker, purchase_date_obj)
+        
+        # Get current ETF price
+        current_price = price_service.get_current_price(ticker, use_stale=True)
+        
+        if purchase_price and current_price:
+            performance = ((current_price - purchase_price) / purchase_price) * 100
+        else:
+            performance = 0
+        
+        return jsonify({
+            'ticker': ticker,
+            'purchase_date': purchase_date,
+            'purchase_price': purchase_price,
+            'current_price': current_price,
+            'performance': performance,
+            'success': True
+        })
+    except Exception as e:
+        return jsonify({
+            'ticker': ticker,
+            'performance': 0,
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @main_blueprint.route('/api/refresh-holdings/<portfolio_id>')
 def refresh_holdings(portfolio_id):
     """Get refreshed holdings data"""
