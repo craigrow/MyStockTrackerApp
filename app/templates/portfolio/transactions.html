@@ -380,11 +380,15 @@ function updatePicksVsIndexChart() {
         }
     });
     
-    // Draw VOO chart
+    // Draw VOO chart and update label
+    const vooPercentage = totalVOO > 0 ? Math.round((beatingVOO / totalVOO) * 100) : 0;
     drawPieChart('picksVsVOOChart', beatingVOO, totalVOO, 'VOO');
+    document.getElementById('vooLabel').textContent = `${vooPercentage}% vs VOO`;
     
-    // Draw QQQ chart
+    // Draw QQQ chart and update label
+    const qqqPercentage = totalQQQ > 0 ? Math.round((beatingQQQ / totalQQQ) * 100) : 0;
     drawPieChart('picksVsQQQChart', beatingQQQ, totalQQQ, 'QQQ');
+    document.getElementById('qqqLabel').textContent = `${qqqPercentage}% vs QQQ`;
 }
 
 function drawPieChart(canvasId, beating, total, indexName) {
@@ -434,11 +438,7 @@ function drawPieChart(canvasId, beating, total, indexName) {
         ctx.stroke();
     }
     
-    // Add center text with percentage
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${beatingPercentage.toFixed(0)}%`, centerX, centerY);
+    // Remove center text - percentage now in label
 }
 
 function updateMultiBaggersChart() {
