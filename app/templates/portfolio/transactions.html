@@ -481,7 +481,7 @@ function updateMultiBaggersChart() {
     const maxValue = Math.max(...values, 1);
     
     const barWidth = width / labels.length;
-    const maxBarHeight = height - 20;
+    const maxBarHeight = height - 35;
     
     // Draw bars
     labels.forEach((label, index) => {
@@ -518,7 +518,7 @@ function updateMultiBaggersChart() {
         ctx.fillStyle = '#fff';
         ctx.font = '10px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(label, x + barWidth/2, height + 12);
+        ctx.fillText(label, x + barWidth/2, height - 5);
     });
 }
 
