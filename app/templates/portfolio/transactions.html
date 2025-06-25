@@ -338,20 +338,23 @@ async function loadCurrentPrices() {
         }
     });
     
-    // Update Picks vs. Indexes chart after all calculations are done
+    // Update Picks vs. Indexes charts after all calculations are done
     updatePicksVsIndexChart();
 }
 
 function updatePicksVsIndexChart() {
-    // Count transactions beating VOO
+    // Count transactions beating VOO and QQQ
     const vsVooCells = document.querySelectorAll('.vs-voo');
-    let beatingVOO = 0;
-    let totalTransactions = 0;
+    const vsQqqCells = document.querySelectorAll('.vs-qqq');
     
+    let beatingVOO = 0, totalVOO = 0;
+    let beatingQQQ = 0, totalQQQ = 0;
+    
+    // Count VOO beats
     vsVooCells.forEach(cell => {
         const vsVooText = cell.textContent.trim();
         if (vsVooText !== 'N/A' && vsVooText !== '-') {
-            totalTransactions++;
+            totalVOO++;
             const vsVooValue = parseFloat(vsVooText.replace('%', ''));
             if (vsVooValue > 0) {
                 beatingVOO++;
@@ -359,44 +362,46 @@ function updatePicksVsIndexChart() {
         }
     });
     
-    if (totalTransactions === 0) return;
+    // Count QQQ beats
+    vsQqqCells.forEach(cell => {
+        const vsQqqText = cell.textContent.trim();
+        if (vsQqqText !== 'N/A' && vsQqqText !== '-') {
+            totalQQQ++;
+            const vsQqqValue = parseFloat(vsQqqText.replace('%', ''));
+            if (vsQqqValue > 0) {
+                beatingQQQ++;
+            }
+        }
+    });
     
-    const beatingPercentage = (beatingVOO / totalTransactions) * 100;
-    const underperformingPercentage = 100 - beatingPercentage;
+    // Draw VOO chart
+    drawPieChart('picksVsVOOChart', beatingVOO, totalVOO, 'VOO');
     
-    // Create pie chart
-    const canvas = document.getElementById('picksVsIndexChart');
-    if (!canvas) return;
+    // Draw QQQ chart
+    drawPieChart('picksVsQQQChart', beatingQQQ, totalQQQ, 'QQQ');
+}
+
+function drawPieChart(canvasId, beating, total, indexName) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || total === 0) return;
     
     const ctx = canvas.getContext('2d');
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const radius = Math.min(centerX, centerY) - 10;
+    const radius = Math.min(centerX, centerY) - 5;
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw pie slices
+    const beatingPercentage = (beating / total) * 100;
+    
+    // Start at top and go clockwise, but put green (beating) on left side
     let currentAngle = -Math.PI / 2; // Start at top
     
-    // Beating VOO slice (green)
-    if (beatingVOO > 0) {
-        const beatingAngle = (beatingPercentage / 100) * 2 * Math.PI;
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + beatingAngle);
-        ctx.closePath();
-        ctx.fillStyle = '#28a745';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        currentAngle += beatingAngle;
-    }
-    
-    // Underperforming slice (red)
-    if (totalTransactions - beatingVOO > 0) {
-        const underperformingAngle = (underperformingPercentage / 100) * 2 * Math.PI;
+    // Underperforming slice first (red) - goes to right side
+    const underperforming = total - beating;
+    if (underperforming > 0) {
+        const underperformingAngle = (underperforming / total) * 2 * Math.PI;
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + underperformingAngle);
@@ -404,33 +409,30 @@ function updatePicksVsIndexChart() {
         ctx.fillStyle = '#dc3545';
         ctx.fill();
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        currentAngle += underperformingAngle;
+    }
+    
+    // Beating slice second (green) - goes to left side
+    if (beating > 0) {
+        const beatingAngle = (beating / total) * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + beatingAngle);
+        ctx.closePath();
+        ctx.fillStyle = '#28a745';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
         ctx.stroke();
     }
     
     // Add center text with percentage
     ctx.fillStyle = '#333';
-    ctx.font = 'bold 16px Arial';
+    ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`${beatingPercentage.toFixed(0)}%`, centerX, centerY - 5);
-    ctx.font = '10px Arial';
-    ctx.fillText('Beat VOO', centerX, centerY + 10);
-    
-    // Add legend below chart
-    const legendContainer = canvas.parentElement;
-    let legend = legendContainer.querySelector('.chart-legend');
-    if (!legend) {
-        legend = document.createElement('div');
-        legend.className = 'chart-legend mt-2';
-        legendContainer.appendChild(legend);
-    }
-    
-    legend.innerHTML = `
-        <div class="d-flex justify-content-center align-items-center" style="font-size: 11px;">
-            <span class="me-2"><span style="display:inline-block;width:10px;height:10px;background:#28a745;margin-right:3px;"></span>Beat (${beatingVOO})</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#dc3545;margin-right:3px;"></span>Miss (${totalTransactions - beatingVOO})</span>
-        </div>
-    `;
+    ctx.fillText(`${beatingPercentage.toFixed(0)}%`, centerX, centerY);
 }
 
 function editTransaction(transactionId) {
