@@ -55,7 +55,29 @@ def transactions():
 
 @portfolio_blueprint.route('/dividends')
 def dividends():
-    return render_template('portfolio/dividends.html')
+    portfolio_service = PortfolioService()
+    portfolios = portfolio_service.get_all_portfolios()
+    
+    # Get current portfolio
+    portfolio_id = request.args.get('portfolio_id')
+    current_portfolio = None
+    all_dividends = []
+    
+    if portfolio_id:
+        current_portfolio = portfolio_service.get_portfolio(portfolio_id)
+        if current_portfolio:
+            all_dividends = portfolio_service.get_portfolio_dividends(portfolio_id)
+    elif portfolios:
+        current_portfolio = portfolios[0]
+        all_dividends = portfolio_service.get_portfolio_dividends(current_portfolio.id)
+    
+    # Sort dividends by date (most recent first)
+    all_dividends.sort(key=lambda d: d.payment_date, reverse=True)
+    
+    return render_template('portfolio/dividends.html',
+                         portfolios=portfolios,
+                         current_portfolio=current_portfolio,
+                         dividends=all_dividends)
 
 @portfolio_blueprint.route('/add-transaction', methods=['GET', 'POST'])
 def add_transaction():
