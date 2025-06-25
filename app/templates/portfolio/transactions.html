@@ -406,7 +406,7 @@ function drawPieChart(canvasId, beating, total, indexName) {
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + underperformingAngle);
         ctx.closePath();
-        ctx.fillStyle = '#dc3545';
+        ctx.fillStyle = '#6c757d';
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1;
@@ -414,14 +414,14 @@ function drawPieChart(canvasId, beating, total, indexName) {
         currentAngle += underperformingAngle;
     }
     
-    // Beating slice second (green) - goes to left side
+    // Beating slice second (light blue) - goes to left side
     if (beating > 0) {
         const beatingAngle = (beating / total) * 2 * Math.PI;
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + beatingAngle);
         ctx.closePath();
-        ctx.fillStyle = '#28a745';
+        ctx.fillStyle = '#17a2b8';
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1;
