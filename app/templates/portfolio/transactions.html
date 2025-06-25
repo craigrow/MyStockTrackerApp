@@ -562,9 +562,9 @@ function updateInvestmentGainsChart() {
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
     
-    const barWidth = 80;
-    const barSpacing = 20;
-    const startX = 20;
+    const barWidth = 50;
+    const barSpacing = 15;
+    const startX = 10;
     
     // Calculate max height for scaling
     const portfolioTotal = totalInvested + portfolioDividends + Math.max(0, portfolioGains);
@@ -579,13 +579,17 @@ function updateInvestmentGainsChart() {
     // Draw VOO bar
     drawStackedBar(ctx, startX + barWidth + barSpacing, 'VOO', totalInvested, vooDividends, vooGains, maxTotal, maxBarHeight, height);
     
-    
     // Draw QQQ bar
     drawStackedBar(ctx, startX + 2 * (barWidth + barSpacing), 'QQQ', totalInvested, qqqDividends, qqqGains, maxTotal, maxBarHeight, height);
+    
+    // Update text display
+    document.getElementById('portfolioGains').textContent = `$${portfolioGains.toLocaleString()}`;
+    document.getElementById('vooGains').textContent = `$${vooGains.toLocaleString()}`;
+    document.getElementById('qqqGains').textContent = `$${qqqGains.toLocaleString()}`;
 }
 
 function drawStackedBar(ctx, x, label, invested, dividends, gains, maxTotal, maxBarHeight, canvasHeight) {
-    const barWidth = 80;
+    const barWidth = 50;
     const total = invested + dividends + Math.max(0, gains);
     const scale = maxBarHeight / maxTotal;
     

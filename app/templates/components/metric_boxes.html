@@ -10,15 +10,15 @@
                 </div>
                 <div class="flex-grow-1">
                     <div class="row">
-                        <div class="col-6">
+                        <div class="col-6 d-flex flex-column align-items-center">
                             <canvas id="picksVsVOOChart" width="100" height="100"></canvas>
-                            <div class="mt-1 text-center">
+                            <div class="mt-1">
                                 <small class="text-light" id="vooLabel">vs VOO</small>
                             </div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-6 d-flex flex-column align-items-center">
                             <canvas id="picksVsQQQChart" width="100" height="100"></canvas>
-                            <div class="mt-1 text-center">
+                            <div class="mt-1">
                                 <small class="text-light" id="qqqLabel">vs QQQ</small>
                             </div>
                         </div>
@@ -53,8 +53,13 @@
                     <h6 class="card-title mb-0">Investment Gains</h6>
                     <i class="fas fa-dollar-sign fa-lg"></i>
                 </div>
-                <div class="flex-grow-1">
-                    <canvas id="investmentGainsChart" width="300" height="120"></canvas>
+                <div class="flex-grow-1 d-flex align-items-center">
+                    <canvas id="investmentGainsChart" width="180" height="120"></canvas>
+                    <div class="ms-3" id="gainsText" style="font-size: 11px;">
+                        <div class="mb-1">Portfolio: <span id="portfolioGains">$0</span></div>
+                        <div class="mb-1">VOO: <span id="vooGains">$0</span></div>
+                        <div>QQQ: <span id="qqqGains">$0</span></div>
+                    </div>
                 </div>
             </div>
         </div>
