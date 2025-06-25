@@ -343,6 +343,9 @@ async function loadCurrentPrices() {
     
     // Update Multi-Baggers chart
     updateMultiBaggersChart();
+    
+    // Update Investment Gains chart
+    updateInvestmentGainsChart();
 }
 
 function updatePicksVsIndexChart() {
@@ -514,6 +517,128 @@ function updateMultiBaggersChart() {
             ctx.fillText(`${label} - ${value}`, x + barWidth/2, y - 5);
         }
     });
+}
+
+function updateInvestmentGainsChart() {
+    // Calculate portfolio totals
+    const currentValueCells = document.querySelectorAll('.current-value');
+    const gainLossCells = document.querySelectorAll('.gain-loss');
+    
+    let totalInvested = 0;
+    let totalCurrentValue = 0;
+    
+    // Calculate from transaction data
+    gainLossCells.forEach(cell => {
+        const costBasis = parseFloat(cell.dataset.cost) || 0;
+        totalInvested += costBasis;
+    });
+    
+    currentValueCells.forEach(cell => {
+        const currentValueText = cell.textContent.trim();
+        if (currentValueText !== 'N/A' && currentValueText !== 'Loading...') {
+            const currentValue = parseFloat(currentValueText.replace(/[$,]/g, '')) || 0;
+            totalCurrentValue += currentValue;
+        }
+    });
+    
+    const portfolioGains = totalCurrentValue - totalInvested;
+    const portfolioDividends = 0; // TODO: Add dividend calculation when available
+    
+    // For now, simulate VOO and QQQ data (would need actual ETF performance data)
+    const vooGains = totalInvested * 0.12; // Approximate 12% gain
+    const vooDividends = totalInvested * 0.015; // Approximate 1.5% dividend yield
+    
+    const qqqGains = totalInvested * 0.15; // Approximate 15% gain  
+    const qqqDividends = totalInvested * 0.005; // Approximate 0.5% dividend yield
+    
+    // Draw stacked bar chart
+    const canvas = document.getElementById('investmentGainsChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    const barWidth = 80;
+    const barSpacing = 20;
+    const startX = 20;
+    
+    // Calculate max height for scaling
+    const portfolioTotal = totalInvested + portfolioDividends + Math.max(0, portfolioGains);
+    const vooTotal = totalInvested + vooDividends + vooGains;
+    const qqqTotal = totalInvested + qqqDividends + qqqGains;
+    const maxTotal = Math.max(portfolioTotal, vooTotal, qqqTotal);
+    const maxBarHeight = height - 40;
+    
+    // Draw Portfolio bar
+    drawStackedBar(ctx, startX, 'Portfolio', totalInvested, portfolioDividends, portfolioGains, maxTotal, maxBarHeight, height);
+    
+    // Draw VOO bar
+    drawStackedBar(ctx, startX + barWidth + barSpacing, 'VOO', totalInvested, vooDividends, vooGains, maxTotal, maxBarHeight, height);
+    
+    
+    // Draw QQQ bar
+    drawStackedBar(ctx, startX + 2 * (barWidth + barSpacing), 'QQQ', totalInvested, qqqDividends, qqqGains, maxTotal, maxBarHeight, height);
+}
+
+function drawStackedBar(ctx, x, label, invested, dividends, gains, maxTotal, maxBarHeight, canvasHeight) {
+    const barWidth = 80;
+    const total = invested + dividends + Math.max(0, gains);
+    const scale = maxBarHeight / maxTotal;
+    
+    let currentY = canvasHeight - 20;
+    
+    // Draw invested portion (bottom)
+    const investedHeight = invested * scale;
+    ctx.fillStyle = '#6c757d'; // Gray
+    ctx.fillRect(x, currentY - investedHeight, barWidth, investedHeight);
+    
+    // Add text if section is large enough
+    if (investedHeight > 15) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`$${(invested/1000).toFixed(0)}k`, x + barWidth/2, currentY - investedHeight/2 + 3);
+    }
+    currentY -= investedHeight;
+    
+    // Draw dividends portion (middle)
+    if (dividends > 0) {
+        const dividendsHeight = dividends * scale;
+        ctx.fillStyle = '#28a745'; // Green
+        ctx.fillRect(x, currentY - dividendsHeight, barWidth, dividendsHeight);
+        
+        if (dividendsHeight > 15) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`$${(dividends/1000).toFixed(0)}k`, x + barWidth/2, currentY - dividendsHeight/2 + 3);
+        }
+        currentY -= dividendsHeight;
+    }
+    
+    // Draw gains portion (top)
+    if (gains > 0) {
+        const gainsHeight = gains * scale;
+        ctx.fillStyle = '#17a2b8'; // Light blue
+        ctx.fillRect(x, currentY - gainsHeight, barWidth, gainsHeight);
+        
+        if (gainsHeight > 15) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '8px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`$${(gains/1000).toFixed(0)}k`, x + barWidth/2, currentY - gainsHeight/2 + 3);
+        }
+    }
+    
+    // Draw label below bar
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + barWidth/2, canvasHeight - 5);
 }
 
 function editTransaction(transactionId) {
