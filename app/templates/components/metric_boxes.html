@@ -1,0 +1,53 @@
+<!-- Reusable Metric Boxes Component -->
+<div class="row mb-4">
+    {% if show_picks_vs_indexes %}
+    <div class="col-md-4 mb-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h6 class="card-title text-primary mb-2">
+                    <i class="fas fa-chart-line me-2"></i>Picks vs. The Indexes
+                </h6>
+                <div class="metric-content">
+                    <div class="placeholder-content text-muted">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_multi_baggers %}
+    <div class="col-md-4 mb-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h6 class="card-title text-success mb-2">
+                    <i class="fas fa-rocket me-2"></i>Multi-Baggers
+                </h6>
+                <div class="metric-content">
+                    <div class="placeholder-content text-muted">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_investment_gains %}
+    <div class="col-md-4 mb-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h6 class="card-title text-info mb-2">
+                    <i class="fas fa-dollar-sign me-2"></i>Investment Gains
+                </h6>
+                <div class="metric-content">
+                    <div class="placeholder-content text-muted">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
