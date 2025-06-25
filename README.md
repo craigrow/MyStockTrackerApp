@@ -32,7 +32,7 @@ A high-performance web application to track stock portfolio performance against 
 
 ## 📊 Performance Metrics
 - **Dashboard Load Time**: 2-3 seconds (90% improvement)
-- **Test Coverage**: 107 passing tests
+- **Test Coverage**: 132 passing tests
 - **Price Data**: 40,000+ cached historical prices
 - **Duplicate Prevention**: 100% effective CSV import protection
 
@@ -42,7 +42,7 @@ A high-performance web application to track stock portfolio performance against 
 - **Frontend**: Bootstrap 5, Chart.js for visualizations
 - **APIs**: Yahoo Finance (yfinance) for real-time stock data
 - **Deployment**: Heroku with automatic deployments
-- **Testing**: pytest with 107 comprehensive tests
+- **Testing**: pytest with 132 comprehensive tests
 
 ## 📈 Smart Data Management
 
@@ -145,7 +145,7 @@ pytest tests/ -v
 - **Performance**: Caching and optimization features
 
 ### Current Test Status
-- ✅ 107 tests passing
+- ✅ 132 tests passing
 - ✅ 0 failures
 - ✅ Comprehensive coverage of all features
 
@@ -197,7 +197,7 @@ heroku run flask db upgrade
 ### Data Integrity Improvements
 - **CSV duplicate detection** prevents portfolio value inflation
 - **Enhanced validation** for all data imports
-- **Comprehensive test coverage** with 107 passing tests
+- **Comprehensive test coverage** with 132 passing tests
 
 ### User Experience Enhancements
 - **Real-time activity logging** shows system status
