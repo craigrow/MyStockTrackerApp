@@ -337,6 +337,100 @@ async function loadCurrentPrices() {
             console.log(`vs VOO: ${vsVOO.toFixed(4)}%`);
         }
     });
+    
+    // Update Picks vs. Indexes chart after all calculations are done
+    updatePicksVsIndexChart();
+}
+
+function updatePicksVsIndexChart() {
+    // Count transactions beating VOO
+    const vsVooCells = document.querySelectorAll('.vs-voo');
+    let beatingVOO = 0;
+    let totalTransactions = 0;
+    
+    vsVooCells.forEach(cell => {
+        const vsVooText = cell.textContent.trim();
+        if (vsVooText !== 'N/A' && vsVooText !== '-') {
+            totalTransactions++;
+            const vsVooValue = parseFloat(vsVooText.replace('%', ''));
+            if (vsVooValue > 0) {
+                beatingVOO++;
+            }
+        }
+    });
+    
+    if (totalTransactions === 0) return;
+    
+    const beatingPercentage = (beatingVOO / totalTransactions) * 100;
+    const underperformingPercentage = 100 - beatingPercentage;
+    
+    // Create pie chart
+    const canvas = document.getElementById('picksVsIndexChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) - 10;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw pie slices
+    let currentAngle = -Math.PI / 2; // Start at top
+    
+    // Beating VOO slice (green)
+    if (beatingVOO > 0) {
+        const beatingAngle = (beatingPercentage / 100) * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + beatingAngle);
+        ctx.closePath();
+        ctx.fillStyle = '#28a745';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        currentAngle += beatingAngle;
+    }
+    
+    // Underperforming slice (red)
+    if (totalTransactions - beatingVOO > 0) {
+        const underperformingAngle = (underperformingPercentage / 100) * 2 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + underperformingAngle);
+        ctx.closePath();
+        ctx.fillStyle = '#dc3545';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    
+    // Add center text with percentage
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${beatingPercentage.toFixed(0)}%`, centerX, centerY - 5);
+    ctx.font = '10px Arial';
+    ctx.fillText('Beat VOO', centerX, centerY + 10);
+    
+    // Add legend below chart
+    const legendContainer = canvas.parentElement;
+    let legend = legendContainer.querySelector('.chart-legend');
+    if (!legend) {
+        legend = document.createElement('div');
+        legend.className = 'chart-legend mt-2';
+        legendContainer.appendChild(legend);
+    }
+    
+    legend.innerHTML = `
+        <div class="d-flex justify-content-center align-items-center" style="font-size: 11px;">
+            <span class="me-2"><span style="display:inline-block;width:10px;height:10px;background:#28a745;margin-right:3px;"></span>Beat (${beatingVOO})</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#dc3545;margin-right:3px;"></span>Miss (${totalTransactions - beatingVOO})</span>
+        </div>
+    `;
 }
 
 function editTransaction(transactionId) {
