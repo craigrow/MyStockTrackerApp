@@ -340,6 +340,9 @@ async function loadCurrentPrices() {
     
     // Update Picks vs. Indexes charts after all calculations are done
     updatePicksVsIndexChart();
+    
+    // Update Multi-Baggers chart
+    updateMultiBaggersChart();
 }
 
 function updatePicksVsIndexChart() {
@@ -433,6 +436,95 @@ function drawPieChart(canvasId, beating, total, indexName) {
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(`${beatingPercentage.toFixed(0)}%`, centerX, centerY);
+}
+
+function updateMultiBaggersChart() {
+    // Count transactions by performance vs VOO categories
+    const vsVooCells = document.querySelectorAll('.vs-voo');
+    const categories = {
+        'Losing': 0,
+        '0-100%': 0,
+        '100-200%': 0,
+        '200-300%': 0,
+        '300%+': 0
+    };
+    
+    vsVooCells.forEach(cell => {
+        const vsVooText = cell.textContent.trim();
+        if (vsVooText !== 'N/A' && vsVooText !== '-') {
+            const vsVooValue = parseFloat(vsVooText.replace('%', ''));
+            
+            if (vsVooValue < 0) {
+                categories['Losing']++;
+            } else if (vsVooValue < 100) {
+                categories['0-100%']++;
+            } else if (vsVooValue < 200) {
+                categories['100-200%']++;
+            } else if (vsVooValue < 300) {
+                categories['200-300%']++;
+            } else {
+                categories['300%+']++;
+            }
+        }
+    });
+    
+    // Draw bar chart
+    const canvas = document.getElementById('multiBaggersChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    const labels = Object.keys(categories);
+    const values = Object.values(categories);
+    const maxValue = Math.max(...values, 1);
+    
+    const barWidth = width / labels.length;
+    const maxBarHeight = height - 20;
+    
+    // Draw bars
+    labels.forEach((label, index) => {
+        const value = values[index];
+        const barHeight = (value / maxValue) * maxBarHeight;
+        const x = index * barWidth;
+        const y = height - barHeight;
+        
+        // Bar color based on category
+        let barColor;
+        if (label === 'Losing') {
+            barColor = '#6c757d'; // Gray
+        } else if (label === '0-100%') {
+            barColor = '#17a2b8'; // Light blue
+        } else if (label === '100-200%') {
+            barColor = '#ffc107'; // Yellow
+        } else if (label === '200-300%') {
+            barColor = '#fd7e14'; // Orange
+        } else {
+            barColor = '#e83e8c'; // Pink
+        }
+        
+        // Draw bar
+        ctx.fillStyle = barColor;
+        ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+        
+        // Draw value on top of bar if > 0
+        if (value > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(value.toString(), x + barWidth/2, y - 2);
+        }
+        
+        // Draw label at bottom
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x + barWidth/2, height - 2);
+    });
 }
 
 function editTransaction(transactionId) {
