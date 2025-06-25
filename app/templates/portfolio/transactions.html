@@ -506,12 +506,12 @@ function updateMultiBaggersChart() {
         ctx.fillStyle = barColor;
         ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
         
-        // Draw combined label and count below the chart
+        // Draw combined label and count above each bar
         if (value > 0) {
             ctx.fillStyle = '#fff';
             ctx.font = '10px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(`${label} - ${value}`, x + barWidth/2, height - 5);
+            ctx.fillText(`${label} - ${value}`, x + barWidth/2, y - 5);
         }
     });
 }
