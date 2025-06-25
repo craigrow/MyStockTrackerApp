@@ -441,26 +441,34 @@ function drawPieChart(canvasId, beating, total, indexName) {
 function updateMultiBaggersChart() {
     // Count transactions by performance vs VOO categories
     const vsVooCells = document.querySelectorAll('.vs-voo');
-    const categories = {
-        '1x': 0,
-        '2x': 0,
-        '3x': 0,
-        '4x+': 0
-    };
+    const categories = {};
+    let maxMultiplier = 1;
     
+    // First pass: find the highest multiplier
     vsVooCells.forEach(cell => {
         const vsVooText = cell.textContent.trim();
         if (vsVooText !== 'N/A' && vsVooText !== '-') {
             const vsVooValue = parseFloat(vsVooText.replace('%', ''));
-            
-            if (vsVooValue >= 0 && vsVooValue < 100) {
-                categories['1x']++;
-            } else if (vsVooValue >= 100 && vsVooValue < 200) {
-                categories['2x']++;
-            } else if (vsVooValue >= 200 && vsVooValue < 300) {
-                categories['3x']++;
-            } else if (vsVooValue >= 300) {
-                categories['4x+']++;
+            if (vsVooValue >= 0) {
+                const multiplier = Math.floor(vsVooValue / 100) + 1;
+                maxMultiplier = Math.max(maxMultiplier, multiplier);
+            }
+        }
+    });
+    
+    // Initialize categories up to max multiplier
+    for (let i = 1; i <= maxMultiplier; i++) {
+        categories[`${i}x`] = 0;
+    }
+    
+    // Second pass: count transactions in each category
+    vsVooCells.forEach(cell => {
+        const vsVooText = cell.textContent.trim();
+        if (vsVooText !== 'N/A' && vsVooText !== '-') {
+            const vsVooValue = parseFloat(vsVooText.replace('%', ''));
+            if (vsVooValue >= 0) {
+                const multiplier = Math.floor(vsVooValue / 100) + 1;
+                categories[`${multiplier}x`]++;
             }
         }
     });
@@ -480,7 +488,7 @@ function updateMultiBaggersChart() {
     const values = Object.values(categories);
     const maxValue = Math.max(...values, 1);
     
-    const barWidth = width / labels.length;
+    const barWidth = Math.min(width / labels.length, 60); // Max width of 60px per bar
     const maxBarHeight = height - 35;
     
     // Draw bars
@@ -490,17 +498,9 @@ function updateMultiBaggersChart() {
         const x = index * barWidth;
         const y = height - barHeight;
         
-        // Bar color based on category
-        let barColor;
-        if (label === '1x') {
-            barColor = '#17a2b8'; // Light blue
-        } else if (label === '2x') {
-            barColor = '#ffc107'; // Yellow
-        } else if (label === '3x') {
-            barColor = '#fd7e14'; // Orange
-        } else {
-            barColor = '#e83e8c'; // Pink
-        }
+        // Bar color based on category - cycle through colors
+        const colors = ['#17a2b8', '#ffc107', '#fd7e14', '#e83e8c', '#6f42c1', '#20c997', '#dc3545'];
+        const barColor = colors[index % colors.length];
         
         // Draw bar
         ctx.fillStyle = barColor;
