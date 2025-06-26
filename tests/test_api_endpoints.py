@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import patch
 
 
+@pytest.mark.api
+@pytest.mark.slow
 class TestAPIEndpoints:
     
     def test_refresh_all_prices_endpoint(self, client, sample_portfolio, app):

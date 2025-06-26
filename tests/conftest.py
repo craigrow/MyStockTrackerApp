@@ -8,6 +8,15 @@ from app.models.stock import Stock
 from app.models.price import PriceHistory
 
 
+def pytest_configure(config):
+    """Configure pytest markers for test categorization."""
+    config.addinivalue_line("markers", "fast: marks tests as fast (unit tests)")
+    config.addinivalue_line("markers", "slow: marks tests as slow (integration tests)")
+    config.addinivalue_line("markers", "ui: marks tests as UI/frontend tests")
+    config.addinivalue_line("markers", "api: marks tests as API endpoint tests")
+    config.addinivalue_line("markers", "database: marks tests that require database operations")
+
+
 @pytest.fixture
 def app():
     """Create and configure a test app instance."""

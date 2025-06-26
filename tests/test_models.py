@@ -9,6 +9,8 @@ from app import db
 import json
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestStock:
     def test_stock_creation(self, app):
         with app.app_context():
@@ -40,6 +42,8 @@ class TestStock:
                 db.session.commit()
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestPortfolio:
     def test_portfolio_creation(self, app):
         with app.app_context():
@@ -80,6 +84,8 @@ class TestPortfolio:
             assert time_diff < 1.0
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestStockTransaction:
     def test_transaction_creation(self, app):
         with app.app_context():
@@ -179,6 +185,8 @@ class TestStockTransaction:
             assert transaction in portfolio.transactions
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestDividend:
     def test_dividend_creation(self, app):
         with app.app_context():
@@ -235,6 +243,8 @@ class TestDividend:
             assert dividend.total_amount > 0
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestCashBalance:
     def test_cash_balance_creation(self, app):
         with app.app_context():
@@ -291,6 +301,8 @@ class TestCashBalance:
             assert cash_balance.last_updated > original_timestamp
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestPriceHistory:
     def test_price_history_creation(self, app):
         with app.app_context():
@@ -383,6 +395,8 @@ class TestPriceHistory:
             assert closing_price.is_intraday is False
 
 
+@pytest.mark.fast
+@pytest.mark.database
 class TestPortfolioCache:
     def test_cache_creation(self, app):
         with app.app_context():

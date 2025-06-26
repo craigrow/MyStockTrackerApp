@@ -7,6 +7,8 @@ from app.models.price import PriceHistory
 from app.services.portfolio_service import PortfolioService
 
 
+@pytest.mark.ui
+@pytest.mark.slow
 class TestTransactionsPage:
     """Test transactions page functionality and performance calculations"""
     
