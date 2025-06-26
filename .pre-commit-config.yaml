@@ -1,0 +1,31 @@
+repos:
+  - repo: local
+    hooks:
+      - id: fast-tests
+        name: Run Fast Tests
+        entry: python -m pytest -m "fast" --tb=short -q
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        
+      - id: python-formatting
+        name: Check Python Formatting
+        entry: python -m py_compile
+        language: system
+        files: \.py$
+        
+      - id: test-markers
+        name: Validate Test Markers
+        entry: python -c "import subprocess; subprocess.run(['python', '-m', 'pytest', '--markers'], check=True)"
+        language: system
+        pass_filenames: false
+        stages: [commit]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
