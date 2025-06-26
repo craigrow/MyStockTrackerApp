@@ -11,6 +11,7 @@ from app import create_app, db
 from app.services.price_service import PriceService
 from app.services.background_tasks import background_updater
 import time
+from datetime import date
 
 def test_price_service_timeout():
     """Test price service with timeout"""
@@ -31,7 +32,7 @@ def test_price_service_timeout():
         print(f"AAPL stale price: ${stale_price}")
         
         # Test data freshness
-        freshness = price_service.get_data_freshness('AAPL', price_service.date.today())
+        freshness = price_service.get_data_freshness('AAPL', date.today())
         print(f"Data freshness: {freshness} minutes")
 
 def test_background_updater():
