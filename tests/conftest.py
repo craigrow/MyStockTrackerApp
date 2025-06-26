@@ -6,6 +6,7 @@ from app import create_app, db
 from app.models.portfolio import Portfolio, StockTransaction, Dividend, CashBalance
 from app.models.stock import Stock
 from app.models.price import PriceHistory
+from tests.utils.mocks import mock_price_service, mock_market_hours
 
 
 def pytest_configure(config):
