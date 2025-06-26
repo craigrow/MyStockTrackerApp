@@ -44,8 +44,8 @@ class MockPriceService:
         }
     
     @staticmethod
-    def mock_get_current_price(ticker):
-        """Mock current price lookup."""
+    def mock_get_current_price(ticker, use_stale=False):
+        """Mock current price lookup with use_stale parameter."""
         prices = MockPriceService.get_mock_prices()
         return prices.get(ticker, 100.00)
     
