@@ -28,7 +28,8 @@ def app():
         'TESTING': True,
         'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
         'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-        'WTF_CSRF_ENABLED': False
+        'WTF_CSRF_ENABLED': False,
+        'SECRET_KEY': 'test-secret-key-for-sessions'
     })
     
     with app.app_context():
