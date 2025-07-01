@@ -585,21 +585,27 @@ def get_price_from_dataframe(price_df, date_str):
     if price_df is None or price_df.empty:
         return None
     
-    if date_str in price_df.index:
-        price = price_df.loc[date_str, 'Close']
-        # Handle case where multiple entries exist for same date
-        if isinstance(price, pd.Series):
-            return float(price.iloc[0])
-        return float(price)
+    try:
+        if date_str in price_df.index:
+            price = price_df.loc[date_str, 'Close']
+            # Handle case where multiple entries exist for same date
+            if isinstance(price, pd.Series):
+                return float(price.iloc[0])
+            return float(price)
+    except (KeyError, IndexError, ValueError):
+        pass
     
-    # Find closest previous date
-    available_dates = [d for d in price_df.index if d < date_str]
-    if available_dates:
-        closest_date = max(available_dates)
-        price = price_df.loc[closest_date, 'Close']
-        if isinstance(price, pd.Series):
-            return float(price.iloc[0])
-        return float(price)
+    try:
+        # Find closest previous date
+        available_dates = [d for d in price_df.index if d < date_str]
+        if available_dates:
+            closest_date = max(available_dates)
+            price = price_df.loc[closest_date, 'Close']
+            if isinstance(price, pd.Series):
+                return float(price.iloc[0])
+            return float(price)
+    except (KeyError, IndexError, ValueError):
+        pass
     
     return None
 
