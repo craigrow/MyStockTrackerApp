@@ -45,25 +45,34 @@ class TestETFCalculationAccuracy:
                     price_timestamp=datetime.utcnow(),
                     last_updated=datetime.utcnow()
                 )
+                # Store VOO current price
+                voo_current_price_history = PriceHistory(
+                    ticker='VOO',
+                    date=date.today(),
+                    close_price=voo_current_price,
+                    price_timestamp=datetime.utcnow(),
+                    last_updated=datetime.utcnow()
+                )
                 from app import db
                 db.session.add(voo_price_history)
+                db.session.add(voo_current_price_history)
                 db.session.commit()
                 
                 # Act: Calculate ETF performance
-                etf_data = price_service.get_etf_comparison_data('VOO', transaction_date.strftime('%Y-%m-%d'))
+                etf_data = price_service.get_etf_comparison_data('VOO', transaction_date, 1500.00)
                 
                 # Assert: VOO calculation accuracy
                 assert etf_data is not None, "VOO comparison data should be available"
                 
-                if 'start_price' in etf_data and 'current_price' in etf_data:
+                if 'purchase_price' in etf_data and 'current_price' in etf_data:
                     # Verify price data matches our known values
-                    assert abs(etf_data['start_price'] - voo_start_price) < 0.01, "VOO start price should match"
+                    assert abs(etf_data['purchase_price'] - voo_start_price) < 0.01, "VOO start price should match"
                     
                     # Calculate expected performance
                     expected_performance = ((voo_current_price - voo_start_price) / voo_start_price) * 100
                     
-                    if 'performance_percent' in etf_data:
-                        actual_performance = etf_data['performance_percent']
+                    if 'gain_loss_percentage' in etf_data:
+                        actual_performance = etf_data['gain_loss_percentage']
                         # Allow small rounding differences (within 0.01%)
                         assert abs(actual_performance - expected_performance) < 0.01, \
                             f"VOO performance should be accurate: expected {expected_performance:.2f}%, got {actual_performance:.2f}%"
@@ -102,23 +111,32 @@ class TestETFCalculationAccuracy:
                     price_timestamp=datetime.utcnow(),
                     last_updated=datetime.utcnow()
                 )
+                # Store QQQ current price
+                qqq_current_price_history = PriceHistory(
+                    ticker='QQQ',
+                    date=date.today(),
+                    close_price=qqq_current_price,
+                    price_timestamp=datetime.utcnow(),
+                    last_updated=datetime.utcnow()
+                )
                 from app import db
                 db.session.add(qqq_price_history)
+                db.session.add(qqq_current_price_history)
                 db.session.commit()
                 
                 # Act: Calculate QQQ performance
-                etf_data = price_service.get_etf_comparison_data('QQQ', transaction_date.strftime('%Y-%m-%d'))
+                etf_data = price_service.get_etf_comparison_data('QQQ', transaction_date, 500.00)
                 
                 # Assert: QQQ calculation accuracy
                 assert etf_data is not None, "QQQ comparison data should be available"
                 
-                if 'start_price' in etf_data and 'current_price' in etf_data:
-                    assert abs(etf_data['start_price'] - qqq_start_price) < 0.01, "QQQ start price should match"
+                if 'purchase_price' in etf_data and 'current_price' in etf_data:
+                    assert abs(etf_data['purchase_price'] - qqq_start_price) < 0.01, "QQQ start price should match"
                     
                     expected_performance = ((qqq_current_price - qqq_start_price) / qqq_start_price) * 100
                     
-                    if 'performance_percent' in etf_data:
-                        actual_performance = etf_data['performance_percent']
+                    if 'gain_loss_percentage' in etf_data:
+                        actual_performance = etf_data['gain_loss_percentage']
                         assert abs(actual_performance - expected_performance) < 0.01, \
                             f"QQQ performance should be accurate: expected {expected_performance:.2f}%, got {actual_performance:.2f}%"
                 
@@ -145,7 +163,7 @@ class TestETFCalculationAccuracy:
                 service.add_transaction(portfolio.id, 'AAPL', 'BUY', weekend_date, 150.00, 10.0)
                 
                 # Act: Get ETF data for weekend date
-                voo_weekend_data = price_service.get_etf_comparison_data('VOO', weekend_date.strftime('%Y-%m-%d'))
+                voo_weekend_data = price_service.get_etf_comparison_data('VOO', weekend_date, 1000.00)
                 
                 # Assert: Should handle weekend dates gracefully
                 # Either return data for Friday or handle gracefully
@@ -156,7 +174,7 @@ class TestETFCalculationAccuracy:
                 service.add_transaction(portfolio.id, 'MSFT', 'BUY', today_date, 300.00, 5.0)
                 
                 # Act: Get ETF data for today
-                qqq_today_data = price_service.get_etf_comparison_data('QQQ', today_date.strftime('%Y-%m-%d'))
+                qqq_today_data = price_service.get_etf_comparison_data('QQQ', today_date, 1000.00)
                 
                 # Assert: Should handle same-day transactions
                 assert qqq_today_data is not None or True, "Should handle same-day transactions without crashing"
@@ -165,7 +183,7 @@ class TestETFCalculationAccuracy:
                 future_date = date(2025, 12, 31)
                 
                 # Act: Get ETF data for future date
-                voo_future_data = price_service.get_etf_comparison_data('VOO', future_date.strftime('%Y-%m-%d'))
+                voo_future_data = price_service.get_etf_comparison_data('VOO', future_date, 1000.00)
                 
                 # Assert: Should handle future dates gracefully
                 assert voo_future_data is not None or True, "Should handle future dates without crashing"
@@ -207,11 +225,11 @@ class TestETFCalculationAccuracy:
                 db.session.commit()
                 
                 # Act: Calculate performance
-                etf_data = price_service.get_etf_comparison_data('VOO', transaction_date.strftime('%Y-%m-%d'))
+                etf_data = price_service.get_etf_comparison_data('VOO', transaction_date, 1578.47)
                 
                 # Assert: Precision is maintained
-                if etf_data and 'performance_percent' in etf_data:
-                    performance = etf_data['performance_percent']
+                if etf_data and 'gain_loss_percentage' in etf_data:
+                    performance = etf_data['gain_loss_percentage']
                     
                     # Verify performance is calculated to reasonable precision
                     expected_performance = ((voo_current - voo_start) / voo_start) * 100
