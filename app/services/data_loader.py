@@ -23,9 +23,11 @@ class DataLoader:
                     shares = float(shares_str)
                     
                     # Check for duplicate
+                    transaction_type = row.get('Type', '').strip().upper()
                     existing = StockTransaction.query.filter_by(
                         portfolio_id=portfolio_id,
                         ticker=ticker,
+                        transaction_type=transaction_type,
                         date=transaction_date,
                         price_per_share=price_per_share,
                         shares=shares
@@ -35,7 +37,7 @@ class DataLoader:
                         transaction = StockTransaction(
                             portfolio_id=portfolio_id,
                             ticker=ticker,
-                            transaction_type=row.get('Type', '').strip().upper(),
+                            transaction_type=transaction_type,
                             date=transaction_date,
                             price_per_share=price_per_share,
                             shares=shares,
