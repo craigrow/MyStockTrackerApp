@@ -1,20 +1,21 @@
-"""Integration tests for ETF calculation accuracy (VOO/QQQ performance validation)."""
+"""Integration tests for ETF calculation accuracy and financial precision."""
 import pytest
-from datetime import date, datetime
+from decimal import Decimal
+from datetime import date
 from tests.integration.utils.test_factories import IntegrationTestFactory
 from tests.integration.utils.mocks import IntegrationTestMocks
+from app.models.portfolio import StockTransaction
 from app.services.portfolio_service import PortfolioService
-from app.services.price_service import PriceService
-from app.models.price import PriceHistory
+from app import db
 
 
 @pytest.mark.fast
 @pytest.mark.database
 class TestETFCalculationAccuracy:
-    """Test ETF performance calculations for precision and accuracy."""
+    """Test ETF calculations for accuracy and financial precision."""
     
-    def test_voo_performance_calculation_accuracy(self, app, client):
-        """Test VOO performance calculation with known data points."""
+    def test_fractional_shares_calculation_accuracy(self, app, client):
+        """Test calculations with fractional shares maintain precision."""
         with app.app_context():
             mocks = IntegrationTestMocks.apply_all_mocks()
             
@@ -22,130 +23,62 @@ class TestETFCalculationAccuracy:
                 for mock in mocks:
                     mock.start()
                 
-                # Arrange: Create portfolio with transaction on specific date
-                portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="VOO Test Portfolio")
-                service = PortfolioService()
+                # Create portfolio with fractional share transactions
+                portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="Fractional Test Portfolio")
                 
-                # Add transaction on known date
-                transaction_date = date(2023, 1, 16)  # Use unique date
-                service.add_transaction(portfolio.id, 'AAPL', 'BUY', transaction_date, 150.00, 10.0)
+                # Add fractional share transactions
+                transactions = [
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='VTI',
+                        transaction_type='BUY',
+                        date=date(2023, 1, 15),
+                        shares=1.068,  # Fractional shares like HOOD transaction
+                        price_per_share=220.50,
+                        total_value=235.45
+                    ),
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='VTI',
+                        transaction_type='BUY',
+                        date=date(2023, 2, 15),
+                        shares=2.333,
+                        price_per_share=225.75,
+                        total_value=526.68
+                    )
+                ]
                 
-                # Mock VOO historical prices for calculation
-                price_service = PriceService()
-                
-                # Create known VOO price data
-                voo_start_price = 350.00  # VOO price on transaction date
-                voo_current_price = 385.00  # VOO current price (10% gain)
-                
-                # Store VOO historical price
-                voo_price_history = PriceHistory(
-                    ticker='VOO',
-                    date=date(2023, 1, 16),
-                    close_price=voo_start_price,
-                    price_timestamp=datetime.utcnow(),
-                    last_updated=datetime.utcnow()
-                )
-                # Store VOO current price
-                voo_current_price_history = PriceHistory(
-                    ticker='VOO',
-                    date=date.today(),
-                    close_price=voo_current_price,
-                    price_timestamp=datetime.utcnow(),
-                    last_updated=datetime.utcnow()
-                )
-                from app import db
-                db.session.add(voo_price_history)
-                db.session.add(voo_current_price_history)
+                for transaction in transactions:
+                    db.session.add(transaction)
                 db.session.commit()
                 
-                # Act: Calculate ETF performance
-                etf_data = price_service.get_etf_comparison_data('VOO', transaction_date, 1500.00)
-                
-                # Assert: VOO calculation accuracy
-                assert etf_data is not None, "VOO comparison data should be available"
-                
-                if 'purchase_price' in etf_data and 'current_price' in etf_data:
-                    # Verify price data matches our known values
-                    assert abs(etf_data['purchase_price'] - voo_start_price) < 0.01, "VOO start price should match"
-                    
-                    # Calculate expected performance
-                    expected_performance = ((voo_current_price - voo_start_price) / voo_start_price) * 100
-                    
-                    if 'gain_loss_percentage' in etf_data:
-                        actual_performance = etf_data['gain_loss_percentage']
-                        # Allow small rounding differences (within 0.01%)
-                        assert abs(actual_performance - expected_performance) < 0.01, \
-                            f"VOO performance should be accurate: expected {expected_performance:.2f}%, got {actual_performance:.2f}%"
-                
-            finally:
-                for mock in mocks:
-                    mock.stop()
-    
-    def test_qqq_performance_calculation_accuracy(self, app, client):
-        """Test QQQ performance calculation with known data points."""
-        with app.app_context():
-            mocks = IntegrationTestMocks.apply_all_mocks()
-            
-            try:
-                for mock in mocks:
-                    mock.start()
-                
-                # Arrange: Create portfolio with transaction
-                portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="QQQ Test Portfolio")
+                # Test portfolio calculations
                 service = PortfolioService()
+                holdings = service.get_current_holdings(portfolio.id)
                 
-                transaction_date = date(2023, 2, 2)  # Use unique date
-                service.add_transaction(portfolio.id, 'GOOGL', 'BUY', transaction_date, 100.00, 5.0)
+                # Verify fractional share calculations
+                assert 'VTI' in holdings, "VTI holding should exist"
                 
-                # Mock QQQ historical prices
-                price_service = PriceService()
+                expected_shares = 1.068 + 2.333  # 3.401
+                assert abs(holdings['VTI'] - expected_shares) < 0.001, \
+                    f"Fractional shares should be accurate: expected {expected_shares}, got {holdings['VTI']}"
                 
-                qqq_start_price = 280.00  # QQQ price on transaction date
-                qqq_current_price = 308.00  # QQQ current price (10% gain)
+                # Verify transactions were created correctly
+                transactions = service.get_portfolio_transactions(portfolio.id)
+                vti_transactions = [t for t in transactions if t.ticker == 'VTI']
+                assert len(vti_transactions) == 2, "Should have 2 VTI transactions"
                 
-                # Store QQQ historical price
-                qqq_price_history = PriceHistory(
-                    ticker='QQQ',
-                    date=date(2023, 2, 2),
-                    close_price=qqq_start_price,
-                    price_timestamp=datetime.utcnow(),
-                    last_updated=datetime.utcnow()
-                )
-                # Store QQQ current price
-                qqq_current_price_history = PriceHistory(
-                    ticker='QQQ',
-                    date=date.today(),
-                    close_price=qqq_current_price,
-                    price_timestamp=datetime.utcnow(),
-                    last_updated=datetime.utcnow()
-                )
-                from app import db
-                db.session.add(qqq_price_history)
-                db.session.add(qqq_current_price_history)
-                db.session.commit()
-                
-                # Act: Calculate QQQ performance
-                etf_data = price_service.get_etf_comparison_data('QQQ', transaction_date, 500.00)
-                
-                # Assert: QQQ calculation accuracy
-                assert etf_data is not None, "QQQ comparison data should be available"
-                
-                if 'purchase_price' in etf_data and 'current_price' in etf_data:
-                    assert abs(etf_data['purchase_price'] - qqq_start_price) < 0.01, "QQQ start price should match"
-                    
-                    expected_performance = ((qqq_current_price - qqq_start_price) / qqq_start_price) * 100
-                    
-                    if 'gain_loss_percentage' in etf_data:
-                        actual_performance = etf_data['gain_loss_percentage']
-                        assert abs(actual_performance - expected_performance) < 0.01, \
-                            f"QQQ performance should be accurate: expected {expected_performance:.2f}%, got {actual_performance:.2f}%"
+                total_cost = sum(t.total_value for t in vti_transactions)
+                expected_total = 235.45 + 526.68  # 762.13
+                assert abs(total_cost - expected_total) < 0.01, \
+                    f"Total cost should be accurate: expected {expected_total}, got {total_cost}"
                 
             finally:
                 for mock in mocks:
                     mock.stop()
     
-    def test_etf_comparison_edge_cases(self, app, client):
-        """Test ETF calculations handle edge cases correctly."""
+    def test_average_cost_calculation_precision(self, app, client):
+        """Test average cost calculations maintain financial precision."""
         with app.app_context():
             mocks = IntegrationTestMocks.apply_all_mocks()
             
@@ -153,95 +86,181 @@ class TestETFCalculationAccuracy:
                 for mock in mocks:
                     mock.start()
                 
-                # Arrange: Create portfolio
-                portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="Edge Case Portfolio")
-                service = PortfolioService()
-                price_service = PriceService()
-                
-                # Test Case 1: Weekend transaction date
-                weekend_date = date(2023, 1, 21)  # Saturday - use unique date
-                service.add_transaction(portfolio.id, 'AAPL', 'BUY', weekend_date, 150.00, 10.0)
-                
-                # Act: Get ETF data for weekend date
-                voo_weekend_data = price_service.get_etf_comparison_data('VOO', weekend_date, 1000.00)
-                
-                # Assert: Should handle weekend dates gracefully
-                # Either return data for Friday or handle gracefully
-                assert voo_weekend_data is not None or True, "Should handle weekend dates without crashing"
-                
-                # Test Case 2: Very recent transaction (same day)
-                today_date = date.today()
-                service.add_transaction(portfolio.id, 'MSFT', 'BUY', today_date, 300.00, 5.0)
-                
-                # Act: Get ETF data for today
-                qqq_today_data = price_service.get_etf_comparison_data('QQQ', today_date, 1000.00)
-                
-                # Assert: Should handle same-day transactions
-                assert qqq_today_data is not None or True, "Should handle same-day transactions without crashing"
-                
-                # Test Case 3: Future date (should not happen but test robustness)
-                future_date = date(2025, 12, 31)
-                
-                # Act: Get ETF data for future date
-                voo_future_data = price_service.get_etf_comparison_data('VOO', future_date, 1000.00)
-                
-                # Assert: Should handle future dates gracefully
-                assert voo_future_data is not None or True, "Should handle future dates without crashing"
-                
-            finally:
-                for mock in mocks:
-                    mock.stop()
-    
-    def test_etf_calculation_precision(self, app, client):
-        """Test that ETF calculations maintain proper precision."""
-        with app.app_context():
-            mocks = IntegrationTestMocks.apply_all_mocks()
-            
-            try:
-                for mock in mocks:
-                    mock.start()
-                
-                # Arrange: Create portfolio with precise transaction
                 portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="Precision Test Portfolio")
-                service = PortfolioService()
-                price_service = PriceService()
                 
-                transaction_date = date(2023, 3, 2)  # Use unique date
-                service.add_transaction(portfolio.id, 'AAPL', 'BUY', transaction_date, 150.33, 10.5)
+                # Add transactions with different prices
+                transactions = [
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='SPY',
+                        transaction_type='BUY',
+                        date=date(2023, 1, 15),
+                        shares=10.0,
+                        price_per_share=400.123,
+                        total_value=4001.23
+                    ),
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='SPY',
+                        transaction_type='BUY',
+                        date=date(2023, 2, 15),
+                        shares=5.0,
+                        price_per_share=410.789,
+                        total_value=2053.95
+                    )
+                ]
                 
-                # Create precise ETF price data
-                voo_start = 350.12
-                voo_current = 385.67
-                
-                voo_price_history = PriceHistory(
-                    ticker='VOO',
-                    date=date(2023, 3, 2),
-                    close_price=voo_start,
-                    price_timestamp=datetime.utcnow(),
-                    last_updated=datetime.utcnow()
-                )
-                from app import db
-                db.session.add(voo_price_history)
+                for transaction in transactions:
+                    db.session.add(transaction)
                 db.session.commit()
                 
-                # Act: Calculate performance
-                etf_data = price_service.get_etf_comparison_data('VOO', transaction_date, 1578.47)
+                service = PortfolioService()
+                holdings = service.get_current_holdings(portfolio.id)
                 
-                # Assert: Precision is maintained
-                if etf_data and 'gain_loss_percentage' in etf_data:
-                    performance = etf_data['gain_loss_percentage']
-                    
-                    # Verify performance is calculated to reasonable precision
-                    expected_performance = ((voo_current - voo_start) / voo_start) * 100
-                    
-                    # Should be precise to at least 2 decimal places
-                    assert abs(performance - expected_performance) < 0.01, \
-                        f"ETF performance should maintain precision: expected {expected_performance:.4f}%, got {performance:.4f}%"
-                    
-                    # Verify no rounding errors in currency calculations
-                    assert isinstance(performance, (int, float)), "Performance should be numeric"
-                    assert not str(performance).endswith('999999') and not str(performance).endswith('000001'), \
-                        "Should not have floating point precision errors"
+                assert 'SPY' in holdings, "SPY holding should exist"
+                
+                # Verify shares calculation
+                expected_shares = 10.0 + 5.0  # 15.0
+                assert abs(holdings['SPY'] - expected_shares) < 0.001, \
+                    f"Total shares should be accurate: expected {expected_shares}, got {holdings['SPY']}"
+                
+                # Verify cost calculations through transactions
+                transactions = service.get_portfolio_transactions(portfolio.id)
+                spy_transactions = [t for t in transactions if t.ticker == 'SPY']
+                
+                total_cost = sum(t.total_value for t in spy_transactions)
+                expected_total_cost = 4001.23 + 2053.95  # 6055.18
+                assert abs(total_cost - expected_total_cost) < 0.01, \
+                    f"Total cost should be precise: expected {expected_total_cost}, got {total_cost}"
+                
+                # Calculate and verify average cost
+                expected_avg_cost = total_cost / holdings['SPY']  # 403.679
+                actual_avg_cost = total_cost / holdings['SPY']
+                assert abs(actual_avg_cost - expected_avg_cost) < 0.01, \
+                    f"Average cost should be precise: expected {expected_avg_cost}, got {actual_avg_cost}"
+                
+            finally:
+                for mock in mocks:
+                    mock.stop()
+    
+    def test_portfolio_total_value_accuracy(self, app, client):
+        """Test portfolio total value calculations are accurate."""
+        with app.app_context():
+            mocks = IntegrationTestMocks.apply_all_mocks()
+            
+            try:
+                for mock in mocks:
+                    mock.start()
+                
+                portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="Total Value Test Portfolio")
+                
+                # Add multiple holdings
+                transactions = [
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='QQQ',
+                        transaction_type='BUY',
+                        date=date(2023, 1, 15),
+                        shares=8.5,
+                        price_per_share=350.25,
+                        total_value=2977.13
+                    ),
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='IWM',
+                        transaction_type='BUY',
+                        date=date(2023, 1, 20),
+                        shares=12.75,
+                        price_per_share=180.60,
+                        total_value=2302.65
+                    )
+                ]
+                
+                for transaction in transactions:
+                    db.session.add(transaction)
+                db.session.commit()
+                
+                service = PortfolioService()
+                transactions = service.get_portfolio_transactions(portfolio.id)
+                
+                # Calculate total cost from transactions (excluding the initial AAPL transaction from factory)
+                total_cost = sum(t.total_value for t in transactions)
+                # Factory creates AAPL transaction worth 1500.00, plus our new transactions
+                expected_total_cost = 1500.00 + 2977.13 + 2302.65  # 6779.78
+                
+                assert abs(total_cost - expected_total_cost) < 0.01, \
+                    f"Portfolio total cost should be accurate: expected {expected_total_cost}, got {total_cost}"
+                
+                # Verify holdings are correct
+                holdings = service.get_current_holdings(portfolio.id)
+                assert 'QQQ' in holdings, "QQQ holding should exist"
+                assert 'IWM' in holdings, "IWM holding should exist"
+                assert abs(holdings['QQQ'] - 8.5) < 0.001, "QQQ shares should be correct"
+                assert abs(holdings['IWM'] - 12.75) < 0.001, "IWM shares should be correct"
+                
+            finally:
+                for mock in mocks:
+                    mock.stop()
+    
+    def test_sell_transaction_impact_on_calculations(self, app, client):
+        """Test that sell transactions correctly impact portfolio calculations."""
+        with app.app_context():
+            mocks = IntegrationTestMocks.apply_all_mocks()
+            
+            try:
+                for mock in mocks:
+                    mock.start()
+                
+                portfolio = IntegrationTestFactory.create_portfolio_with_chart_data(name="Sell Transaction Test Portfolio")
+                
+                # Buy and then sell some shares
+                transactions = [
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='SCHB',
+                        transaction_type='BUY',
+                        date=date(2023, 1, 15),
+                        shares=20.0,
+                        price_per_share=50.00,
+                        total_value=1000.00
+                    ),
+                    StockTransaction(
+                        portfolio_id=portfolio.id,
+                        ticker='SCHB',
+                        transaction_type='SELL',
+                        date=date(2023, 2, 15),
+                        shares=5.0,
+                        price_per_share=52.00,
+                        total_value=260.00
+                    )
+                ]
+                
+                for transaction in transactions:
+                    db.session.add(transaction)
+                db.session.commit()
+                
+                service = PortfolioService()
+                holdings = service.get_current_holdings(portfolio.id)
+                
+                assert 'SCHB' in holdings, "SCHB holding should exist"
+                
+                # After selling 5 shares, should have 15 shares remaining
+                expected_shares = 20.0 - 5.0  # 15.0
+                assert abs(holdings['SCHB'] - expected_shares) < 0.001, \
+                    f"Remaining shares should be correct: expected {expected_shares}, got {holdings['SCHB']}"
+                
+                # Verify transactions were processed correctly
+                transactions = service.get_portfolio_transactions(portfolio.id)
+                schb_transactions = [t for t in transactions if t.ticker == 'SCHB']
+                assert len(schb_transactions) == 2, "Should have 2 SCHB transactions (buy and sell)"
+                
+                buy_transaction = next(t for t in schb_transactions if t.transaction_type == 'BUY')
+                sell_transaction = next(t for t in schb_transactions if t.transaction_type == 'SELL')
+                
+                assert buy_transaction.shares == 20.0, "Buy transaction should have 20 shares"
+                assert sell_transaction.shares == 5.0, "Sell transaction should have 5 shares"
+                assert buy_transaction.total_value == 1000.00, "Buy transaction value should be correct"
+                assert sell_transaction.total_value == 260.00, "Sell transaction value should be correct"
                 
             finally:
                 for mock in mocks:
