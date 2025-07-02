@@ -1,5 +1,5 @@
 """Test factories for integration tests."""
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from app import db
 from app.models.portfolio import Portfolio, StockTransaction
 from app.models.stock import Stock
@@ -52,7 +52,7 @@ class IntegrationTestFactory:
                 close_price=base_price,  # Same starting value for all
                 is_intraday=False,
                 price_timestamp=datetime.combine(purchase_date, datetime.min.time()),
-                last_updated=datetime.utcnow()
+                last_updated=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.session.add(price_history)
         

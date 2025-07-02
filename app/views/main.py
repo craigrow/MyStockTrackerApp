@@ -3,7 +3,7 @@ from app.services.portfolio_service import PortfolioService
 from app.services.price_service import PriceService
 from app.services.background_tasks import background_updater
 from collections import defaultdict
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import pandas as pd
 from app.models.cache import PortfolioCache
 from app import db
@@ -86,7 +86,7 @@ def refresh_holdings(portfolio_id):
         return jsonify({
             'success': True,
             'holdings': holdings,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         })
     except Exception as e:
         return jsonify({
@@ -122,7 +122,7 @@ def refresh_all_prices(portfolio_id):
             'refreshed_count': refreshed_count,
             'total_tickers': len(all_tickers),
             'holdings': updated_holdings,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({

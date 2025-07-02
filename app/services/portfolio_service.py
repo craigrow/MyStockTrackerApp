@@ -1,6 +1,6 @@
 from app import db
 from app.models.portfolio import Portfolio, StockTransaction, Dividend, CashBalance
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from collections import defaultdict
 
 
@@ -104,7 +104,7 @@ class PortfolioService:
         cash_balance = CashBalance.query.get(portfolio_id)
         if cash_balance:
             cash_balance.balance = balance
-            cash_balance.last_updated = datetime.utcnow()
+            cash_balance.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)
         else:
             cash_balance = CashBalance(
                 portfolio_id=portfolio_id,

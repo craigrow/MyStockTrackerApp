@@ -1,6 +1,6 @@
 from app import db
 from app.models.price import PriceHistory
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import yfinance as yf
 
 
@@ -45,7 +45,7 @@ class PriceService:
             return False
         
         # Consider cache fresh if updated within specified minutes
-        time_diff = datetime.utcnow() - price_history.last_updated
+        time_diff = datetime.now(timezone.utc).replace(tzinfo=None) - price_history.last_updated
         return time_diff < timedelta(minutes=freshness_minutes)
     
     def get_data_freshness(self, ticker, price_date):
@@ -58,7 +58,7 @@ class PriceService:
         if not price_history or not price_history.last_updated:
             return None
         
-        time_diff = datetime.utcnow() - price_history.last_updated
+        time_diff = datetime.now(timezone.utc).replace(tzinfo=None) - price_history.last_updated
         return int(time_diff.total_seconds() / 60)
     
     def fetch_from_api(self, ticker, timeout=10):
@@ -154,16 +154,16 @@ class PriceService:
         if price_history:
             price_history.close_price = price
             price_history.is_intraday = is_intraday
-            price_history.price_timestamp = datetime.utcnow()
-            price_history.last_updated = datetime.utcnow()
+            price_history.price_timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
+            price_history.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)
         else:
             price_history = PriceHistory(
                 ticker=ticker,
                 date=price_date,
                 close_price=price,
                 is_intraday=is_intraday,
-                price_timestamp=datetime.utcnow(),
-                last_updated=datetime.utcnow()
+                price_timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
+                last_updated=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.session.add(price_history)
         
