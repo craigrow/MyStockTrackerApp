@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ test-automation ]
+    branches: [ devQ ]
   pull_request:
     branches: [ main ]
 
@@ -39,7 +39,7 @@ jobs:
   deploy-devq:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/test-automation'
+    if: github.ref == 'refs/heads/devQ'
     
     steps:
     - uses: actions/checkout@v4
