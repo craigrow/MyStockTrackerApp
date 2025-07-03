@@ -1,0 +1,80 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ test-automation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        python -m pytest --tb=short -q
+        
+    - name: Test coverage check
+      run: |
+        RESULT=$(python -m pytest --tb=no -q | tail -1)
+        if [[ $RESULT != *"passed"* ]] || [[ $RESULT == *"failed"* ]]; then
+          echo "Tests failed: $RESULT"
+          exit 1
+        fi
+        echo "All tests passed: $RESULT"
+
+  deploy-devq:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/test-automation'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to DevQ Heroku
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+        heroku_app_name: "mystocktrackerapp-devq"
+        heroku_email: ${{secrets.HEROKU_EMAIL}}
+
+  promote-to-main:
+    needs: [test, deploy-devq]
+    runs-on: ubuntu-latest
+    if: false  # Disabled for testing
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{secrets.GITHUB_TOKEN}}
+    
+    - name: Merge to main and deploy
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git checkout main
+        git pull origin main
+        git merge devQ --no-ff -m "Auto-merge devQ to main after UAT approval"
+        git push origin main
+    
+    - name: Deploy to Production Heroku
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+        heroku_app_name: "mystocktrackerapp-prod"
+        heroku_email: ${{secrets.HEROKU_EMAIL}}
