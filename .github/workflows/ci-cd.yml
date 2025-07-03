@@ -57,8 +57,7 @@ jobs:
       continue-on-error: true
       run: |
         chmod +x scripts/verify_deployment.sh
-        ./scripts/verify_deployment.sh devq || echo "⚠️ Verification failed but deployment may still be successful - check manually" || echo "⚠️ Verification failed but deployment may still be successful - check manually"
-      continue-on-error: true
+        ./scripts/verify_deployment.sh devq || echo "⚠️ Verification failed but deployment may still be successful - check manually"
 
   promote-to-main:
     needs: [test, deploy-devq]
