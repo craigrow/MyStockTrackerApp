@@ -168,4 +168,4 @@ class TestDeleteTransactionAPI:
             transaction_id = transaction.id
             
             response = client.get(f'/portfolio/delete-transaction/{transaction_id}')
-            assert response.status_code == 404  # Route not found for GET method
+            assert response.status_code == 405  # Method Not Allowed
