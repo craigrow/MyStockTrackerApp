@@ -12,11 +12,33 @@ This project is a web app for tracking the performance of stock portfolios v. ma
 4. There is a file at /Users/craigrow/q/src/AmazonBuilderGenAIPowerUsersQContext/scripts/code-assist.script.md with further instructions for AI agents. 
 5. Before starting any coding, please become familiar with all the documents mentioned above and confirm any details necessary.
 
+## Deployment Automation (GitHub Actions CI/CD)
+1. **Automated Workflow**: Push to devQ or devR triggers GitHub Actions automation:
+   - Tests run automatically (225+ tests must pass 100%)
+   - Automatic deployment to respective dev environment
+   - Deployment verification with health checks
+   - UAT approval gate before production deployment
+   - Automatic merge to main and production deployment after approval
+
+2. **New Development Workflow**:
+   ```bash
+   # Complete deployment process
+   git push origin devQ  # or devR
+   # Wait for dev deployment notification
+   # Test dev environment for UAT
+   # Approve via GitHub Actions interface
+   # Production deploys automatically
+   ```
+
+3. **Multi-Agent Coordination**: Two AI agents work simultaneously on devQ and devR branches. UAT approval gates prevent conflicts, but coordination is important.
+
+4. **Documentation**: See `docs/automation/github-actions-cicd-plan.md` for complete automation details.
+
 ## Code Quality
-1. We have an extensive test suite. Promotion from dev branches to main may not happen until.
-    1. All changes from main have been pulled down to dev, and
-    2. All tests are passing 100%, and
-    3. UAT has been completed and passed.
-2. We have real using who have dependencies on Main. No breaking changes are acceptable in Main. 
+1. We have an extensive test suite. Promotion from dev branches to main happens automatically after:
+    1. All tests pass 100% (automated)
+    2. Dev environment deploys successfully (automated)
+    3. UAT approval is granted (manual)
+2. We have real users who have dependencies on Main. No breaking changes are acceptable in Main. 
 
 
