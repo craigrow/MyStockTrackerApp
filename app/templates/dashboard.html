@@ -155,6 +155,7 @@
                                     <th>Shares</th>
                                     <th>Current Price</th>
                                     <th>Market Value</th>
+                                    <th>Portfolio %</th>
                                     <th>Gain/Loss</th>
                                     <th>%</th>
                                 </tr>
@@ -173,6 +174,7 @@
                                         {% endif %}
                                     </td>
                                     <td>${{ "%.2f"|format(holding.market_value) }}</td>
+                                    <td><strong>{{ "%.2f"|format(holding.portfolio_percentage) }}%</strong></td>
                                     <td class="{{ 'text-success' if holding.gain_loss >= 0 else 'text-danger' }}">
                                         ${{ "%.2f"|format(holding.gain_loss) }}
                                     </td>
@@ -453,6 +455,7 @@ function updateHoldingsTable(holdings) {
             <td>${holding.shares.toFixed(3)}</td>
             <td>$${holding.current_price.toFixed(2)}${staleIcon}</td>
             <td>$${holding.market_value.toFixed(2)}</td>
+            <td><strong>${holding.portfolio_percentage.toFixed(2)}%</strong></td>
             <td class="${gainLossClass}">$${holding.gain_loss.toFixed(2)}</td>
             <td class="${gainLossClass}">${holding.gain_loss_percentage.toFixed(2)}%</td>
         `;
