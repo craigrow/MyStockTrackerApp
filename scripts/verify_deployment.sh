@@ -27,9 +27,13 @@ esac
 echo "🚀 Verifying $ENV deployment..."
 echo "URL: $URL"
 
-# Check dyno status
+# Check dyno status (skip if heroku CLI not available)
 echo "📊 Checking dyno status..."
-heroku ps --app $APP
+if command -v heroku &> /dev/null; then
+    heroku ps --app $APP
+else
+    echo "ℹ️ Heroku CLI not available, skipping dyno status check"
+fi
 
 # Wake up the app with a health check
 echo "⏰ Waking up app (may take 30+ seconds)..."
@@ -44,6 +48,11 @@ if [ $HTTP_CODE -eq 200 ]; then
 else
     echo "❌ App failed to respond (HTTP $HTTP_CODE) after ${DURATION}s"
     echo "📋 Recent logs:"
-    heroku logs --tail --num=10 --app $APP
+    if command -v heroku &> /dev/null; then
+        heroku logs --tail --num=10 --app $APP
+    else
+        echo "ℹ️ Heroku CLI not available, cannot fetch logs"
+        echo "🔗 Check logs manually at: https://dashboard.heroku.com/apps/$APP/logs"
+    fi
     exit 1
 fi
