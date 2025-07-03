@@ -121,3 +121,22 @@ class PortfolioService:
     
     def get_all_portfolios(self):
         return Portfolio.query.all()
+    
+    def delete_transaction(self, transaction_id, portfolio_id):
+        """Delete a transaction if it belongs to the specified portfolio"""
+        transaction = StockTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return False
+        
+        # Verify transaction belongs to the specified portfolio
+        if transaction.portfolio_id != portfolio_id:
+            return False
+        
+        try:
+            db.session.delete(transaction)
+            db.session.commit()
+            return True
+        except Exception:
+            db.session.rollback()
+            return False

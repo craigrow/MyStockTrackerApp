@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app.services.portfolio_service import PortfolioService
+from app.models.portfolio import StockTransaction
 from datetime import datetime, date
 
 portfolio_blueprint = Blueprint('portfolio', __name__, url_prefix='/portfolio')
@@ -250,3 +251,38 @@ def import_csv():
 @portfolio_blueprint.route('/export-csv')
 def export_csv():
     return "CSV Export - Coming Soon"
+
+@portfolio_blueprint.route('/delete-transaction/<int:transaction_id>', methods=['DELETE'])
+def delete_transaction(transaction_id):
+    """Delete a transaction via API"""
+    try:
+        portfolio_service = PortfolioService()
+        
+        # Get transaction to find portfolio_id
+        transaction = StockTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return jsonify({
+                'success': False,
+                'error': 'Transaction not found'
+            }), 404
+        
+        # Delete transaction
+        success = portfolio_service.delete_transaction(transaction_id, transaction.portfolio_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Transaction deleted successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete transaction'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error deleting transaction: {str(e)}'
+        }), 500
