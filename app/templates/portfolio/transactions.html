@@ -658,20 +658,25 @@ function deleteTransaction(transactionId, ticker, type) {
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
-                // Show success message
                 alert('Transaction deleted successfully!');
-                // Reload the page to show updated data
                 window.location.reload();
             } else {
                 alert('Error deleting transaction: ' + data.error);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error deleting transaction. Please try again.');
+            console.error('Delete error:', error);
+            alert('Error deleting transaction: ' + error.message);
         });
     }
 }
