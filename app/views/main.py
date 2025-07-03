@@ -384,6 +384,25 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'is_stale': True
             })
     
+    # Calculate total portfolio value for percentage calculations
+    total_portfolio_value = sum(holding['market_value'] for holding in holdings_data)
+    
+    # Add portfolio percentage to each holding
+    for holding in holdings_data:
+        if total_portfolio_value > 0:
+            holding['portfolio_percentage'] = (holding['market_value'] / total_portfolio_value) * 100
+        else:
+            holding['portfolio_percentage'] = 0.0
+    
+    # Debug logging
+    print(f"[DEBUG] Holdings count: {len(holdings_data)}, Total portfolio value: {total_portfolio_value}")
+    if holdings_data:
+        print(f"[DEBUG] First holding keys: {list(holdings_data[0].keys())}")
+        print(f"[DEBUG] First holding portfolio_percentage: {holdings_data[0].get('portfolio_percentage', 'MISSING')}")
+    
+    # Sort holdings by portfolio percentage descending (largest first)
+    holdings_data.sort(key=lambda x: x['portfolio_percentage'], reverse=True)
+    
     return holdings_data
 
 def generate_chart_data(portfolio_id, portfolio_service, price_service):

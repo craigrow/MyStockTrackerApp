@@ -32,6 +32,27 @@ def mock_yfinance():
 class MockPriceService:
     """Mock price service for consistent price data."""
     
+    def __init__(self):
+        self.prices = {
+            'AAPL': 150.00,
+            'GOOGL': 2500.00,
+            'MSFT': 300.00,
+            'VOO': 400.00,
+            'QQQ': 350.00
+        }
+    
+    def set_price(self, ticker, price):
+        """Set price for a specific ticker."""
+        self.prices[ticker] = price
+    
+    def get_current_price(self, ticker, use_stale=False):
+        """Mock current price lookup with use_stale parameter."""
+        return self.prices.get(ticker, 100.00)
+    
+    def get_data_freshness(self, ticker, date):
+        """Mock data freshness check."""
+        return 5  # Always return 5 minutes for testing
+    
     @staticmethod
     def get_mock_prices():
         """Return consistent mock price data."""
