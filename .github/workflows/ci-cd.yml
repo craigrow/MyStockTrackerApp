@@ -52,11 +52,16 @@ jobs:
       run: |
         git remote add heroku-devq https://:${HEROKU_API_KEY}@git.heroku.com/mystocktrackerapp-devq.git
         git push heroku-devq HEAD:main --force
+    
+    - name: Verify DevQ Deployment
+      run: |
+        chmod +x scripts/verify_deployment.sh
+        ./scripts/verify_deployment.sh devq
 
   promote-to-main:
     needs: [test, deploy-devq]
     runs-on: ubuntu-latest
-    if: false  # Disabled for testing
+    if: github.ref == 'refs/heads/devQ'
     environment: production
     
     steps:
@@ -78,3 +83,8 @@ jobs:
       run: |
         git remote add heroku-prod https://:${{secrets.HEROKU_API_KEY}}@git.heroku.com/mystocktrackerapp-prod.git
         git push heroku-prod HEAD:main --force
+    
+    - name: Verify Production Deployment
+      run: |
+        chmod +x scripts/verify_deployment.sh
+        ./scripts/verify_deployment.sh prod
