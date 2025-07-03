@@ -54,10 +54,10 @@ jobs:
         git push heroku-devq HEAD:main --force
     
     - name: Verify DevQ Deployment
+      continue-on-error: true
       run: |
         chmod +x scripts/verify_deployment.sh
-        ./scripts/verify_deployment.sh devq || echo "⚠️ Verification failed but deployment may still be successful - check manually"
-      continue-on-error: true || echo "⚠️ Verification failed but deployment may still be successful - check manually"
+        ./scripts/verify_deployment.sh devq || echo "⚠️ Verification failed but deployment may still be successful - check manually" || echo "⚠️ Verification failed but deployment may still be successful - check manually"
       continue-on-error: true
 
   promote-to-main:
@@ -87,7 +87,7 @@ jobs:
         git push heroku-prod HEAD:main --force
     
     - name: Verify Production Deployment
+      continue-on-error: true
       run: |
         chmod +x scripts/verify_deployment.sh
         ./scripts/verify_deployment.sh prod || echo "⚠️ Verification failed but deployment may still be successful - check manually"
-      continue-on-error: true
