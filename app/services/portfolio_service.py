@@ -140,3 +140,30 @@ class PortfolioService:
         except Exception:
             db.session.rollback()
             return False
+    
+    def update_transaction(self, transaction_id, portfolio_id, **kwargs):
+        """Update a transaction if it belongs to the specified portfolio"""
+        transaction = StockTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return None
+        
+        # Verify transaction belongs to the specified portfolio
+        if transaction.portfolio_id != portfolio_id:
+            return None
+        
+        try:
+            # Update allowed fields
+            for field, value in kwargs.items():
+                if hasattr(transaction, field):
+                    setattr(transaction, field, value)
+            
+            # Recalculate total_value if price or shares changed
+            if 'price_per_share' in kwargs or 'shares' in kwargs:
+                transaction.total_value = transaction.price_per_share * transaction.shares
+            
+            db.session.commit()
+            return transaction
+        except Exception:
+            db.session.rollback()
+            return None

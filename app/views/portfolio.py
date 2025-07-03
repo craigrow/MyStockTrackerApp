@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from app.services.portfolio_service import PortfolioService
 from app.models.portfolio import StockTransaction
 from datetime import datetime, date
+from dateutil import parser
 
 portfolio_blueprint = Blueprint('portfolio', __name__, url_prefix='/portfolio')
 
@@ -285,4 +286,48 @@ def delete_transaction(transaction_id):
         return jsonify({
             'success': False,
             'error': f'Error deleting transaction: {str(e)}'
+        }), 500
+
+@portfolio_blueprint.route('/edit-transaction/<transaction_id>', methods=['PUT', 'OPTIONS'])
+def edit_transaction(transaction_id):
+    """Edit a transaction via API"""
+    try:
+        portfolio_service = PortfolioService()
+        data = request.get_json()
+        
+        # Get transaction to find portfolio_id
+        transaction = StockTransaction.query.get(transaction_id)
+        
+        if not transaction:
+            return jsonify({
+                'success': False,
+                'error': 'Transaction not found'
+            }), 404
+        
+        # Parse date if provided
+        if 'date' in data:
+            data['date'] = parser.parse(data['date']).date()
+        
+        # Update transaction
+        updated_transaction = portfolio_service.update_transaction(
+            transaction_id, 
+            transaction.portfolio_id, 
+            **data
+        )
+        
+        if updated_transaction:
+            return jsonify({
+                'success': True,
+                'message': 'Transaction updated successfully'
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update transaction'
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error updating transaction: {str(e)}'
         }), 500
