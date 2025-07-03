@@ -252,7 +252,7 @@ def import_csv():
 def export_csv():
     return "CSV Export - Coming Soon"
 
-@portfolio_blueprint.route('/delete-transaction/<int:transaction_id>', methods=['DELETE'])
+@portfolio_blueprint.route('/delete-transaction/<transaction_id>', methods=['DELETE'])
 def delete_transaction(transaction_id):
     """Delete a transaction via API"""
     try:
