@@ -43,12 +43,13 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Deploy to DevQ Heroku
       env:
         HEROKU_API_KEY: ${{secrets.HEROKU_API_KEY}}
       run: |
-        echo "API Key length: ${#HEROKU_API_KEY}"
         git remote add heroku-devq https://:${HEROKU_API_KEY}@git.heroku.com/mystocktrackerapp-devq.git
         git push heroku-devq HEAD:main --force
 
