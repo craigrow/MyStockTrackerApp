@@ -51,6 +51,7 @@ jobs:
         heroku_app_name: "mystocktrackerapp-devq"
         heroku_email: ${{secrets.HEROKU_EMAIL}}
         usedocker: false
+        dontautocreate: true
 
   promote-to-main:
     needs: [test, deploy-devq]
@@ -80,3 +81,4 @@ jobs:
         heroku_app_name: "mystocktrackerapp-prod"
         heroku_email: ${{secrets.HEROKU_EMAIL}}
         usedocker: false
+        dontautocreate: true
