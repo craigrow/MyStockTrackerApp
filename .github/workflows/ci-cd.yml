@@ -45,13 +45,9 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Deploy to DevQ Heroku
-      uses: akhileshns/heroku-deploy@v3.13.15
-      with:
-        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
-        heroku_app_name: "mystocktrackerapp-devq"
-        heroku_email: ${{secrets.HEROKU_EMAIL}}
-        usedocker: false
-        dontautocreate: true
+      run: |
+        git remote add heroku-devq https://heroku:${{secrets.HEROKU_API_KEY}}@git.heroku.com/mystocktrackerapp-devq.git
+        git push heroku-devq HEAD:main --force
 
   promote-to-main:
     needs: [test, deploy-devq]
@@ -75,10 +71,6 @@ jobs:
         git push origin main
     
     - name: Deploy to Production Heroku
-      uses: akhileshns/heroku-deploy@v3.13.15
-      with:
-        heroku_api_key: ${{secrets.HEROKU_API_KEY}}
-        heroku_app_name: "mystocktrackerapp-prod"
-        heroku_email: ${{secrets.HEROKU_EMAIL}}
-        usedocker: false
-        dontautocreate: true
+      run: |
+        git remote add heroku-prod https://heroku:${{secrets.HEROKU_API_KEY}}@git.heroku.com/mystocktrackerapp-prod.git
+        git push heroku-prod HEAD:main --force
