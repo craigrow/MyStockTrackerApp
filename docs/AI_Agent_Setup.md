@@ -12,6 +12,26 @@ This project is a web app for tracking the performance of stock portfolios v. ma
 4. There is a file at /Users/craigrow/q/src/AmazonBuilderGenAIPowerUsersQContext/scripts/code-assist.script.md with further instructions for AI agents. 
 5. Before starting any coding, please become familiar with all the documents mentioned above and confirm any details necessary.
 
+## ⚠️ CRITICAL: Branch Synchronization Protocol
+**ALWAYS sync your development branch with main before starting work to prevent merge conflicts:**
+
+```bash
+# Before starting ANY development work:
+git checkout main
+git pull origin main
+git checkout devQ  # or devR
+git merge main     # Sync with latest main changes
+
+# If merge conflicts occur, resolve them BEFORE coding
+# Then proceed with development
+```
+
+**Why this matters:**
+- Prevents merge conflicts during automated deployments
+- Ensures your branch has the latest production changes
+- Avoids deployment failures in GitHub Actions
+- Maintains clean git history
+
 ## Deployment Automation (GitHub Actions CI/CD)
 1. **Automated Workflow**: Push to devQ or devR triggers GitHub Actions automation:
    - Tests run automatically (225+ tests must pass 100%)
@@ -22,7 +42,15 @@ This project is a web app for tracking the performance of stock portfolios v. ma
 
 2. **New Development Workflow**:
    ```bash
-   # Complete deployment process
+   # STEP 1: Always sync with main first
+   git checkout main && git pull origin main
+   git checkout devQ  # or devR
+   git merge main     # Resolve any conflicts here
+   
+   # STEP 2: Complete development work
+   # ... make your changes ...
+   
+   # STEP 3: Deploy
    git push origin devQ  # or devR
    # Wait for dev deployment notification
    # Test dev environment for UAT
@@ -31,6 +59,11 @@ This project is a web app for tracking the performance of stock portfolios v. ma
    ```
 
 3. **Multi-Agent Coordination**: Two AI agents work simultaneously on devQ and devR branches. UAT approval gates prevent conflicts, but coordination is important.
+
+4. **Branch Sync Requirements**: 
+   - **ALWAYS** sync dev branches with main before starting work
+   - Check for recent main branch updates before each development session
+   - Resolve any merge conflicts in dev environment, never in production workflow
 
 4. **Documentation**: See `docs/automation/github-actions-cicd-plan.md` for complete automation details.
 
