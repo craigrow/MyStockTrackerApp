@@ -35,10 +35,25 @@ else
     echo "ℹ️ Heroku CLI not available, skipping dyno status check"
 fi
 
-# Wake up the app with a health check
-echo "⏰ Waking up app (may take 30+ seconds)..."
+# Wake up the app with a health check (with retries)
+echo "⏰ Waking up app (may take 60+ seconds)..."
 START_TIME=$(date +%s)
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 $URL)
+
+# Try multiple times with increasing delays
+for i in {1..3}; do
+    echo "🔄 Attempt $i/3..."
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 $URL)
+    
+    if [ $HTTP_CODE -eq 200 ]; then
+        break
+    fi
+    
+    if [ $i -lt 3 ]; then
+        echo "⏳ Waiting 15 seconds before retry..."
+        sleep 15
+    fi
+done
+
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
