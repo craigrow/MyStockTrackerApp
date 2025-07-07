@@ -157,6 +157,7 @@
                                     <th class="sortable" data-column="market_value" style="cursor: pointer;">Market Value <i class="fas fa-sort text-muted"></i></th>
                                     <th class="sortable" data-column="gain_loss" style="cursor: pointer;">Gain/Loss <i class="fas fa-sort text-muted"></i></th>
                                     <th class="sortable" data-column="gain_loss_percentage" style="cursor: pointer;">Gain/Loss % <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="portfolio_percentage" style="cursor: pointer;">% of Portfolio <i class="fas fa-sort text-muted"></i></th>
                                     <th class="sortable" data-column="voo_performance" style="cursor: pointer;">VOO Performance <i class="fas fa-sort text-muted"></i></th>
                                     <th class="sortable" data-column="qqq_performance" style="cursor: pointer;">QQQ Performance <i class="fas fa-sort text-muted"></i></th>
                                 </tr>
@@ -180,6 +181,9 @@
                                     </td>
                                     <td class="{{ 'text-success' if holding.gain_loss_percentage >= 0 else 'text-danger' }}">
                                         {{ "{:,.2f}".format(holding.gain_loss_percentage) }}%
+                                    </td>
+                                    <td>
+                                        {{ "{:,.2f}".format(holding.portfolio_percentage) }}%
                                     </td>
                                     <td class="{{ 'text-success' if holding.voo_performance >= 0 else 'text-danger' }}">
                                         {{ "{:,.2f}".format(holding.voo_performance) }}%
@@ -495,7 +499,7 @@ function refreshPrices() {
 }
 
 // Holdings table sorting functionality
-let currentSortColumn = 'market_value';
+let currentSortColumn = 'portfolio_percentage';
 let currentSortDirection = 'desc';
 
 function formatNumber(num, decimals = 2) {
@@ -549,13 +553,17 @@ function sortTable(column) {
                 aVal = parseFloat(a.cells[5].textContent.replace(/[%,]/g, ''));
                 bVal = parseFloat(b.cells[5].textContent.replace(/[%,]/g, ''));
                 break;
-            case 'voo_performance':
+            case 'portfolio_percentage':
                 aVal = parseFloat(a.cells[6].textContent.replace(/[%,]/g, ''));
                 bVal = parseFloat(b.cells[6].textContent.replace(/[%,]/g, ''));
                 break;
-            case 'qqq_performance':
+            case 'voo_performance':
                 aVal = parseFloat(a.cells[7].textContent.replace(/[%,]/g, ''));
                 bVal = parseFloat(b.cells[7].textContent.replace(/[%,]/g, ''));
+                break;
+            case 'qqq_performance':
+                aVal = parseFloat(a.cells[8].textContent.replace(/[%,]/g, ''));
+                bVal = parseFloat(b.cells[8].textContent.replace(/[%,]/g, ''));
                 break;
             default:
                 return 0;
@@ -574,8 +582,8 @@ function sortTable(column) {
     // Update sort indicators
     updateSortIndicators();
     
-    // Apply highlighting if sorted by market value
-    if (column === 'market_value') {
+    // Apply highlighting if sorted by portfolio percentage (default) or market value
+    if (column === 'portfolio_percentage' || column === 'market_value') {
         highlightTopHoldings();
     } else {
         clearHighlighting();
@@ -637,9 +645,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Initial sort by market value (descending) and highlight top holdings
+    // Initial sort by portfolio percentage (descending) and highlight top holdings
     setTimeout(() => {
-        sortTable('market_value');
+        sortTable('portfolio_percentage');
     }, 100);
 });
 
@@ -669,14 +677,15 @@ function updateHoldingsTable(holdings) {
             <td>$${formatNumber(holding.market_value, 2)}</td>
             <td class="${gainLossClass}">$${formatNumber(holding.gain_loss, 2)}</td>
             <td class="${gainLossClass}">${formatNumber(holding.gain_loss_percentage, 2)}%</td>
+            <td>${formatNumber(holding.portfolio_percentage || 0, 2)}%</td>
             <td class="${vooClass}">${formatNumber(holding.voo_performance || 0, 2)}%</td>
             <td class="${qqqClass}">${formatNumber(holding.qqq_performance || 0, 2)}%</td>
         `;
         tbody.appendChild(row);
     });
     
-    // Re-apply highlighting if sorted by market value
-    if (currentSortColumn === 'market_value') {
+    // Re-apply highlighting if sorted by portfolio percentage or market value
+    if (currentSortColumn === 'portfolio_percentage' || currentSortColumn === 'market_value') {
         highlightTopHoldings();
     }
 }
