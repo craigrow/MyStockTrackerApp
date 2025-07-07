@@ -421,6 +421,9 @@ function filterChartByDate(startDate) {
     
     chart.update();
     logActivity(`Chart filtered to start from: ${startDate || 'beginning'}`);
+    
+    // Save preference to localStorage
+    localStorage.setItem('chartStartDate', startDate || '');
 }
 
 function resetChartDate() {
@@ -451,6 +454,9 @@ function setChartPeriod(period) {
     
     document.getElementById('chartStartDate').value = startDate || '';
     filterChartByDate(startDate);
+    
+    // Save period preference to localStorage
+    localStorage.setItem('chartPeriod', period);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -460,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear radio buttons when custom date is selected
             document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
             filterChartByDate(this.value);
+            localStorage.removeItem('chartPeriod'); // Clear period preference for custom date
         });
         
         if (originalChartData.dates.length > 0) {
@@ -476,6 +483,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Restore saved preferences
+    const savedPeriod = localStorage.getItem('chartPeriod');
+    const savedStartDate = localStorage.getItem('chartStartDate');
+    
+    if (savedPeriod && savedPeriod !== 'all') {
+        // Restore radio button selection
+        const radioButton = document.getElementById(savedPeriod);
+        if (radioButton) {
+            radioButton.checked = true;
+            setChartPeriod(savedPeriod);
+        }
+    } else if (savedStartDate) {
+        // Restore custom date
+        dateInput.value = savedStartDate;
+        filterChartByDate(savedStartDate);
+        document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
+    }
 });
 
 // Activity logging
