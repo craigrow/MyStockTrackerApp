@@ -499,8 +499,8 @@ function refreshPrices() {
 }
 
 // Holdings table sorting functionality
-let currentSortColumn = 'portfolio_percentage';
-let currentSortDirection = 'desc';
+let currentSortColumn = null;
+let currentSortDirection = null;
 
 function formatNumber(num, decimals = 2) {
     if (num === null || num === undefined) return '0.00';
