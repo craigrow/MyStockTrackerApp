@@ -129,8 +129,15 @@
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Portfolio Performance</h5>
+                <div class="d-flex align-items-center">
+                    <label for="chartStartDate" class="form-label me-2 mb-0">Start Date:</label>
+                    <input type="date" id="chartStartDate" class="form-control form-control-sm" style="width: 150px;">
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="resetChartDate()">
+                        <i class="fas fa-undo me-1"></i>Reset
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <canvas id="portfolioChart" height="500"></canvas>
@@ -306,15 +313,23 @@
 {% block scripts %}
 {% if current_portfolio and chart_data %}
 <script>
+// Store original chart data
+const originalChartData = {
+    dates: {{ chart_data.dates | tojson }},
+    portfolio_values: {{ chart_data.portfolio_values | tojson }},
+    voo_values: {{ chart_data.voo_values | tojson }},
+    qqq_values: {{ chart_data.qqq_values | tojson }}
+};
+
 const ctx = document.getElementById('portfolioChart').getContext('2d');
 const chart = new Chart(ctx, {
     type: 'line',
     data: {
-        labels: {{ chart_data.dates | tojson }},
+        labels: originalChartData.dates,
         datasets: [
             {
                 label: 'Portfolio Value',
-                data: {{ chart_data.portfolio_values | tojson }},
+                data: originalChartData.portfolio_values,
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
                 tension: 0.1,
@@ -324,7 +339,7 @@ const chart = new Chart(ctx, {
             },
             {
                 label: 'S&P 500 (VOO)',
-                data: {{ chart_data.voo_values | tojson }},
+                data: originalChartData.voo_values,
                 borderColor: 'rgb(153, 102, 255)',
                 backgroundColor: 'rgba(153, 102, 255, 0.1)',
                 tension: 0.1,
@@ -334,7 +349,7 @@ const chart = new Chart(ctx, {
             },
             {
                 label: 'NASDAQ (QQQ)',
-                data: {{ chart_data.qqq_values | tojson }},
+                data: originalChartData.qqq_values,
                 borderColor: 'rgb(255, 159, 64)',
                 backgroundColor: 'rgba(255, 159, 64, 0.1)',
                 tension: 0.1,
@@ -369,6 +384,46 @@ const chart = new Chart(ctx, {
                 display: true,
                 position: 'top'
             }
+        }
+    }
+});
+
+// Chart date filtering functionality
+function filterChartByDate(startDate) {
+    if (!startDate) {
+        chart.data.labels = originalChartData.dates;
+        chart.data.datasets[0].data = originalChartData.portfolio_values;
+        chart.data.datasets[1].data = originalChartData.voo_values;
+        chart.data.datasets[2].data = originalChartData.qqq_values;
+    } else {
+        const startIndex = originalChartData.dates.findIndex(date => date >= startDate);
+        if (startIndex === -1) return;
+        
+        chart.data.labels = originalChartData.dates.slice(startIndex);
+        chart.data.datasets[0].data = originalChartData.portfolio_values.slice(startIndex);
+        chart.data.datasets[1].data = originalChartData.voo_values.slice(startIndex);
+        chart.data.datasets[2].data = originalChartData.qqq_values.slice(startIndex);
+    }
+    
+    chart.update();
+    logActivity(`Chart filtered to start from: ${startDate || 'beginning'}`);
+}
+
+function resetChartDate() {
+    document.getElementById('chartStartDate').value = '';
+    filterChartByDate(null);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('chartStartDate');
+    if (dateInput) {
+        dateInput.addEventListener('change', function() {
+            filterChartByDate(this.value);
+        });
+        
+        if (originalChartData.dates.length > 0) {
+            dateInput.min = originalChartData.dates[0];
+            dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
         }
     }
 });
