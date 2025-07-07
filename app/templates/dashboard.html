@@ -131,12 +131,26 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Portfolio Performance</h5>
-                <div class="d-flex align-items-center">
-                    <label for="chartStartDate" class="form-label me-2 mb-0">Start Date:</label>
-                    <input type="date" id="chartStartDate" class="form-control form-control-sm" style="width: 150px;">
-                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="resetChartDate()">
-                        <i class="fas fa-undo me-1"></i>Reset
-                    </button>
+                <div class="d-flex align-items-center flex-wrap">
+                    <div class="me-3 mb-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="chartPeriod" id="ytd" value="ytd">
+                            <label class="btn btn-outline-primary" for="ytd">YTD</label>
+                            
+                            <input type="radio" class="btn-check" name="chartPeriod" id="last12m" value="last12m">
+                            <label class="btn btn-outline-primary" for="last12m">12M</label>
+                            
+                            <input type="radio" class="btn-check" name="chartPeriod" id="last5y" value="last5y">
+                            <label class="btn btn-outline-primary" for="last5y">5Y</label>
+                            
+                            <input type="radio" class="btn-check" name="chartPeriod" id="all" value="all" checked>
+                            <label class="btn btn-outline-primary" for="all">All</label>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <label for="chartStartDate" class="form-label me-2 mb-0">Custom:</label>
+                        <input type="date" id="chartStartDate" class="form-control form-control-sm" style="width: 140px;">
+                    </div>
                 </div>
             </div>
             <div class="card-body">
@@ -411,13 +425,40 @@ function filterChartByDate(startDate) {
 
 function resetChartDate() {
     document.getElementById('chartStartDate').value = '';
+    document.getElementById('all').checked = true;
     filterChartByDate(null);
+}
+
+function setChartPeriod(period) {
+    const today = new Date();
+    let startDate = null;
+    
+    switch(period) {
+        case 'ytd':
+            startDate = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+            break;
+        case 'last12m':
+            startDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+            break;
+        case 'last5y':
+            startDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+            break;
+        case 'all':
+        default:
+            startDate = null;
+            break;
+    }
+    
+    document.getElementById('chartStartDate').value = startDate || '';
+    filterChartByDate(startDate);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.getElementById('chartStartDate');
     if (dateInput) {
         dateInput.addEventListener('change', function() {
+            // Clear radio buttons when custom date is selected
+            document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
             filterChartByDate(this.value);
         });
         
@@ -426,6 +467,15 @@ document.addEventListener('DOMContentLoaded', function() {
             dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
         }
     }
+    
+    // Add radio button event listeners
+    document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                setChartPeriod(this.value);
+            }
+        });
+    });
 });
 
 // Activity logging
