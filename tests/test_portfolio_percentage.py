@@ -141,8 +141,8 @@ class TestDashboardPortfolioPercentage:
                 response = client.get(f'/?portfolio_id={portfolio.id}')
                 assert response.status_code == 200
                 
-                # Check that Portfolio % column header exists
-                assert b'Portfolio %' in response.data
+                # Check that % of Portfolio column header exists
+                assert b'% of Portfolio' in response.data
                 
                 # Check that percentage value is displayed
                 assert b'100.00%' in response.data
