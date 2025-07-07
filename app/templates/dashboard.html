@@ -151,35 +151,45 @@
                         <table class="table table-hover" id="holdingsTable">
                             <thead>
                                 <tr>
-                                    <th>Ticker</th>
-                                    <th>Shares</th>
-                                    <th>Current Price</th>
-                                    <th>Market Value</th>
-                                    <th>Portfolio %</th>
-                                    <th>Gain/Loss</th>
-                                    <th>%</th>
+                                    <th class="sortable" data-column="ticker" style="cursor: pointer;">Ticker <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="shares" style="cursor: pointer;">Shares <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="current_price" style="cursor: pointer;">Current Price <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="market_value" style="cursor: pointer;">Market Value <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="gain_loss" style="cursor: pointer;">Gain/Loss <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="gain_loss_percentage" style="cursor: pointer;">Gain/Loss % <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="portfolio_percentage" style="cursor: pointer;">% of Portfolio <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="voo_performance" style="cursor: pointer;">VOO Performance <i class="fas fa-sort text-muted"></i></th>
+                                    <th class="sortable" data-column="qqq_performance" style="cursor: pointer;">QQQ Performance <i class="fas fa-sort text-muted"></i></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for holding in holdings %}
-                                <tr>
+                                <tr data-market-value="{{ holding.market_value }}" data-portfolio-percentage="{{ holding.portfolio_percentage }}">
                                     <td><strong>{{ holding.ticker }}</strong></td>
-                                    <td>{{ "%.3f"|format(holding.shares) }}</td>
+                                    <td>{{ "{:,.3f}".format(holding.shares) }}</td>
                                     <td>
-                                        ${{ "%.2f"|format(holding.current_price) }}
+                                        ${{ "{:,.2f}".format(holding.current_price) }}
                                         {% if holding.is_stale %}
                                         <small class="text-warning ms-1" title="Data may be outdated">
                                             <i class="fas fa-clock"></i>
                                         </small>
                                         {% endif %}
                                     </td>
-                                    <td>${{ "%.2f"|format(holding.market_value) }}</td>
-                                    <td><strong>{{ "%.2f"|format(holding.portfolio_percentage) }}%</strong></td>
+                                    <td>${{ "{:,.2f}".format(holding.market_value) }}</td>
                                     <td class="{{ 'text-success' if holding.gain_loss >= 0 else 'text-danger' }}">
-                                        ${{ "%.2f"|format(holding.gain_loss) }}
+                                        ${{ "{:,.2f}".format(holding.gain_loss) }}
                                     </td>
                                     <td class="{{ 'text-success' if holding.gain_loss_percentage >= 0 else 'text-danger' }}">
-                                        {{ "%.2f"|format(holding.gain_loss_percentage) }}%
+                                        {{ "{:,.2f}".format(holding.gain_loss_percentage) }}%
+                                    </td>
+                                    <td>
+                                        {{ "{:,.2f}".format(holding.portfolio_percentage) }}%
+                                    </td>
+                                    <td class="{{ 'text-success' if holding.voo_performance >= 0 else 'text-danger' }}">
+                                        {{ "{:,.2f}".format(holding.voo_performance) }}%
+                                    </td>
+                                    <td class="{{ 'text-success' if holding.qqq_performance >= 0 else 'text-danger' }}">
+                                        {{ "{:,.2f}".format(holding.qqq_performance) }}%
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -440,28 +450,7 @@ function refreshHoldings(portfolioId) {
         });
 }
 
-function updateHoldingsTable(holdings) {
-    const tbody = document.querySelector('#holdingsTable tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    holdings.forEach(holding => {
-        const row = document.createElement('tr');
-        const staleIcon = holding.is_stale ? '<small class="text-warning ms-1" title="Data may be outdated"><i class="fas fa-clock"></i></small>' : '';
-        const gainLossClass = holding.gain_loss >= 0 ? 'text-success' : 'text-danger';
-        
-        row.innerHTML = `
-            <td><strong>${holding.ticker}</strong></td>
-            <td>${holding.shares.toFixed(3)}</td>
-            <td>$${holding.current_price.toFixed(2)}${staleIcon}</td>
-            <td>$${holding.market_value.toFixed(2)}</td>
-            <td><strong>${holding.portfolio_percentage.toFixed(2)}%</strong></td>
-            <td class="${gainLossClass}">$${holding.gain_loss.toFixed(2)}</td>
-            <td class="${gainLossClass}">${holding.gain_loss_percentage.toFixed(2)}%</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
+
 
 // Start progress checking if updates are in progress
 {% if update_progress and update_progress.status in ['updating', 'queued'] %}
@@ -509,7 +498,194 @@ function refreshPrices() {
     {% endif %}
 }
 
+// Holdings table sorting functionality
+let currentSortColumn = null;
+let currentSortDirection = null;
+
+function formatNumber(num, decimals = 2) {
+    if (num === null || num === undefined) return '0.00';
+    return parseFloat(num).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+
+function sortTable(column) {
+    const table = document.getElementById('holdingsTable');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Toggle direction if same column, otherwise default to desc for numeric, asc for text
+    if (currentSortColumn === column) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortDirection = ['ticker'].includes(column) ? 'asc' : 'desc';
+    }
+    
+    currentSortColumn = column;
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aVal, bVal;
+        
+        switch(column) {
+            case 'ticker':
+                aVal = a.cells[0].textContent.trim();
+                bVal = b.cells[0].textContent.trim();
+                break;
+            case 'shares':
+                aVal = parseFloat(a.cells[1].textContent.replace(/,/g, ''));
+                bVal = parseFloat(b.cells[1].textContent.replace(/,/g, ''));
+                break;
+            case 'current_price':
+                aVal = parseFloat(a.cells[2].textContent.replace(/[$,]/g, ''));
+                bVal = parseFloat(b.cells[2].textContent.replace(/[$,]/g, ''));
+                break;
+            case 'market_value':
+                aVal = parseFloat(a.getAttribute('data-market-value'));
+                bVal = parseFloat(b.getAttribute('data-market-value'));
+                break;
+            case 'gain_loss':
+                aVal = parseFloat(a.cells[4].textContent.replace(/[$,]/g, ''));
+                bVal = parseFloat(b.cells[4].textContent.replace(/[$,]/g, ''));
+                break;
+            case 'gain_loss_percentage':
+                aVal = parseFloat(a.cells[5].textContent.replace(/[%,]/g, ''));
+                bVal = parseFloat(b.cells[5].textContent.replace(/[%,]/g, ''));
+                break;
+            case 'portfolio_percentage':
+                aVal = parseFloat(a.cells[6].textContent.replace(/[%,]/g, ''));
+                bVal = parseFloat(b.cells[6].textContent.replace(/[%,]/g, ''));
+                break;
+            case 'voo_performance':
+                aVal = parseFloat(a.cells[7].textContent.replace(/[%,]/g, ''));
+                bVal = parseFloat(b.cells[7].textContent.replace(/[%,]/g, ''));
+                break;
+            case 'qqq_performance':
+                aVal = parseFloat(a.cells[8].textContent.replace(/[%,]/g, ''));
+                bVal = parseFloat(b.cells[8].textContent.replace(/[%,]/g, ''));
+                break;
+            default:
+                return 0;
+        }
+        
+        if (currentSortDirection === 'asc') {
+            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+        } else {
+            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+    });
+    
+    // Update table
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Update sort indicators
+    updateSortIndicators();
+    
+    // Apply highlighting if sorted by portfolio percentage (default) or market value
+    if (column === 'portfolio_percentage' || column === 'market_value') {
+        highlightTopHoldings();
+    } else {
+        clearHighlighting();
+    }
+}
+
+function updateSortIndicators() {
+    // Reset all indicators
+    document.querySelectorAll('.sortable i').forEach(icon => {
+        icon.className = 'fas fa-sort text-muted';
+    });
+    
+    // Set current column indicator
+    const currentHeader = document.querySelector(`[data-column="${currentSortColumn}"] i`);
+    if (currentHeader) {
+        currentHeader.className = currentSortDirection === 'asc' ? 
+            'fas fa-sort-up text-primary' : 'fas fa-sort-down text-primary';
+    }
+}
+
+function highlightTopHoldings() {
+    const tbody = document.querySelector('#holdingsTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Calculate total portfolio value
+    let totalValue = 0;
+    rows.forEach(row => {
+        totalValue += parseFloat(row.getAttribute('data-market-value') || 0);
+    });
+    
+    // Find holdings that make up top 50%
+    let cumulativeValue = 0;
+    const targetValue = totalValue * 0.5;
+    
+    rows.forEach(row => {
+        const marketValue = parseFloat(row.getAttribute('data-market-value') || 0);
+        cumulativeValue += marketValue;
+        
+        if (cumulativeValue <= targetValue) {
+            row.classList.add('table-light');
+        } else {
+            row.classList.remove('table-light');
+        }
+    });
+}
+
+function clearHighlighting() {
+    document.querySelectorAll('#holdingsTable tbody tr').forEach(row => {
+        row.classList.remove('table-light');
+    });
+}
+
+// Add click handlers to sortable headers
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.getAttribute('data-column');
+            sortTable(column);
+        });
+    });
+    
+    // Initial sort by portfolio percentage (descending) and highlight top holdings
+    setTimeout(() => {
+        sortTable('portfolio_percentage');
+    }, 100);
+});
+
 // Log page load
 logActivity('Dashboard loaded');
 </script>
 {% endblock %}
+function updateHoldingsTable(holdings) {
+    const tbody = document.querySelector('#holdingsTable tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    holdings.forEach(holding => {
+        const row = document.createElement('tr');
+        row.setAttribute('data-market-value', holding.market_value);
+        row.setAttribute('data-portfolio-percentage', holding.portfolio_percentage || 0);
+        
+        const staleIcon = holding.is_stale ? '<small class="text-warning ms-1" title="Data may be outdated"><i class="fas fa-clock"></i></small>' : '';
+        const gainLossClass = holding.gain_loss >= 0 ? 'text-success' : 'text-danger';
+        const vooClass = (holding.voo_performance || 0) >= 0 ? 'text-success' : 'text-danger';
+        const qqqClass = (holding.qqq_performance || 0) >= 0 ? 'text-success' : 'text-danger';
+        
+        row.innerHTML = `
+            <td><strong>${holding.ticker}</strong></td>
+            <td>${formatNumber(holding.shares, 3)}</td>
+            <td>$${formatNumber(holding.current_price, 2)}${staleIcon}</td>
+            <td>$${formatNumber(holding.market_value, 2)}</td>
+            <td class="${gainLossClass}">$${formatNumber(holding.gain_loss, 2)}</td>
+            <td class="${gainLossClass}">${formatNumber(holding.gain_loss_percentage, 2)}%</td>
+            <td>${formatNumber(holding.portfolio_percentage || 0, 2)}%</td>
+            <td class="${vooClass}">${formatNumber(holding.voo_performance || 0, 2)}%</td>
+            <td class="${qqqClass}">${formatNumber(holding.qqq_performance || 0, 2)}%</td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Re-apply highlighting if sorted by portfolio percentage or market value
+    if (currentSortColumn === 'portfolio_percentage' || currentSortColumn === 'market_value') {
+        highlightTopHoldings();
+    }
+}

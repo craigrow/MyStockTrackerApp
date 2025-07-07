@@ -342,7 +342,18 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 cost_basis[transaction.ticker]['total_shares'] -= transaction.shares
     
     holdings_data = []
+    total_portfolio_value = 0
     
+    # First pass: calculate market values for portfolio percentage
+    for ticker, shares in holdings.items():
+        try:
+            current_price = price_service.get_current_price(ticker, use_stale=use_stale) or 0
+            market_value = shares * current_price
+            total_portfolio_value += market_value
+        except:
+            pass
+    
+    # Second pass: build holdings data with ETF performance
     for ticker, shares in holdings.items():
         try:
             current_price = price_service.get_current_price(ticker, use_stale=use_stale) or 0
@@ -359,6 +370,13 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
             gain_loss = market_value - total_cost
             gain_loss_percentage = (gain_loss / total_cost * 100) if total_cost > 0 else 0
             
+            # Calculate ETF performance for this holding
+            voo_performance = calculate_etf_performance_for_holding(ticker, transactions, 'VOO')
+            qqq_performance = calculate_etf_performance_for_holding(ticker, transactions, 'QQQ')
+            
+            # Calculate portfolio percentage
+            portfolio_percentage = (market_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
+            
             holdings_data.append({
                 'ticker': ticker,
                 'shares': shares,
@@ -367,6 +385,9 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'cost_basis': total_cost,
                 'gain_loss': gain_loss,
                 'gain_loss_percentage': gain_loss_percentage,
+                'voo_performance': voo_performance,
+                'qqq_performance': qqq_performance,
+                'portfolio_percentage': portfolio_percentage,
                 'data_age_minutes': freshness,
                 'is_stale': is_stale
             })
@@ -380,6 +401,9 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'cost_basis': 0,
                 'gain_loss': 0,
                 'gain_loss_percentage': 0,
+                'voo_performance': 0,
+                'qqq_performance': 0,
+                'portfolio_percentage': 0,
                 'data_age_minutes': None,
                 'is_stale': True
             })
@@ -988,6 +1012,45 @@ def calculate_portfolio_daily_change(portfolio_id, today, yesterday, portfolio_s
         print(f"Error calculating portfolio daily change: {e}")
     
     return {'percentage': 0, 'dollar': 0}
+
+def calculate_etf_performance_for_holding(ticker, transactions, etf_ticker):
+    """Calculate ETF performance for a specific holding based on purchase dates and amounts"""
+    try:
+        # Get all BUY transactions for this ticker
+        buy_transactions = [t for t in transactions if t.ticker == ticker and t.transaction_type == 'BUY']
+        
+        if not buy_transactions:
+            return 0
+        
+        # Calculate weighted average purchase date and total investment
+        total_investment = sum(t.total_value for t in buy_transactions)
+        weighted_date_sum = 0
+        
+        for transaction in buy_transactions:
+            weight = transaction.total_value / total_investment
+            # Convert date to days since epoch for averaging
+            days_since_epoch = (transaction.date - date(1970, 1, 1)).days
+            weighted_date_sum += days_since_epoch * weight
+        
+        # Convert back to date
+        avg_purchase_date = date(1970, 1, 1) + timedelta(days=int(weighted_date_sum))
+        
+        # Get ETF price on average purchase date
+        etf_purchase_price = get_historical_price(etf_ticker, avg_purchase_date)
+        
+        # Get current ETF price
+        from app.services.price_service import PriceService
+        price_service = PriceService()
+        current_etf_price = price_service.get_current_price(etf_ticker, use_stale=True)
+        
+        if etf_purchase_price and current_etf_price:
+            performance = ((current_etf_price - etf_purchase_price) / etf_purchase_price) * 100
+            return round(performance, 2)
+        
+    except Exception as e:
+        print(f"Error calculating ETF performance for {ticker} vs {etf_ticker}: {e}")
+    
+    return 0
 
 def get_previous_trading_day(current_date):
     """Get the previous trading day (skip weekends and holidays)"""
