@@ -129,8 +129,29 @@
 <div class="row">
     <div class="col-12 mb-4">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Portfolio Performance</h5>
+                <div class="d-flex align-items-center flex-wrap">
+                    <div class="me-3 mb-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="chartPeriod" id="ytd" value="ytd">
+                            <label class="btn btn-outline-primary" for="ytd">YTD</label>
+                            
+                            <input type="radio" class="btn-check" name="chartPeriod" id="last12m" value="last12m">
+                            <label class="btn btn-outline-primary" for="last12m">12M</label>
+                            
+                            <input type="radio" class="btn-check" name="chartPeriod" id="last5y" value="last5y">
+                            <label class="btn btn-outline-primary" for="last5y">5Y</label>
+                            
+                            <input type="radio" class="btn-check" name="chartPeriod" id="all" value="all" checked>
+                            <label class="btn btn-outline-primary" for="all">All</label>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <label for="chartStartDate" class="form-label me-2 mb-0">Custom:</label>
+                        <input type="date" id="chartStartDate" class="form-control form-control-sm" style="width: 140px;">
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <canvas id="portfolioChart" height="500"></canvas>
@@ -306,15 +327,23 @@
 {% block scripts %}
 {% if current_portfolio and chart_data %}
 <script>
+// Store original chart data
+const originalChartData = {
+    dates: {{ chart_data.dates | tojson }},
+    portfolio_values: {{ chart_data.portfolio_values | tojson }},
+    voo_values: {{ chart_data.voo_values | tojson }},
+    qqq_values: {{ chart_data.qqq_values | tojson }}
+};
+
 const ctx = document.getElementById('portfolioChart').getContext('2d');
 const chart = new Chart(ctx, {
     type: 'line',
     data: {
-        labels: {{ chart_data.dates | tojson }},
+        labels: originalChartData.dates,
         datasets: [
             {
                 label: 'Portfolio Value',
-                data: {{ chart_data.portfolio_values | tojson }},
+                data: originalChartData.portfolio_values,
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.1)',
                 tension: 0.1,
@@ -324,7 +353,7 @@ const chart = new Chart(ctx, {
             },
             {
                 label: 'S&P 500 (VOO)',
-                data: {{ chart_data.voo_values | tojson }},
+                data: originalChartData.voo_values,
                 borderColor: 'rgb(153, 102, 255)',
                 backgroundColor: 'rgba(153, 102, 255, 0.1)',
                 tension: 0.1,
@@ -334,7 +363,7 @@ const chart = new Chart(ctx, {
             },
             {
                 label: 'NASDAQ (QQQ)',
-                data: {{ chart_data.qqq_values | tojson }},
+                data: originalChartData.qqq_values,
                 borderColor: 'rgb(255, 159, 64)',
                 backgroundColor: 'rgba(255, 159, 64, 0.1)',
                 tension: 0.1,
@@ -370,6 +399,107 @@ const chart = new Chart(ctx, {
                 position: 'top'
             }
         }
+    }
+});
+
+// Chart date filtering functionality
+function filterChartByDate(startDate) {
+    if (!startDate) {
+        chart.data.labels = originalChartData.dates;
+        chart.data.datasets[0].data = originalChartData.portfolio_values;
+        chart.data.datasets[1].data = originalChartData.voo_values;
+        chart.data.datasets[2].data = originalChartData.qqq_values;
+    } else {
+        const startIndex = originalChartData.dates.findIndex(date => date >= startDate);
+        if (startIndex === -1) return;
+        
+        chart.data.labels = originalChartData.dates.slice(startIndex);
+        chart.data.datasets[0].data = originalChartData.portfolio_values.slice(startIndex);
+        chart.data.datasets[1].data = originalChartData.voo_values.slice(startIndex);
+        chart.data.datasets[2].data = originalChartData.qqq_values.slice(startIndex);
+    }
+    
+    chart.update();
+    logActivity(`Chart filtered to start from: ${startDate || 'beginning'}`);
+    
+    // Save preference to localStorage
+    localStorage.setItem('chartStartDate', startDate || '');
+}
+
+function resetChartDate() {
+    document.getElementById('chartStartDate').value = '';
+    document.getElementById('all').checked = true;
+    filterChartByDate(null);
+}
+
+function setChartPeriod(period) {
+    const today = new Date();
+    let startDate = null;
+    
+    switch(period) {
+        case 'ytd':
+            startDate = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+            break;
+        case 'last12m':
+            startDate = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+            break;
+        case 'last5y':
+            startDate = new Date(today.getFullYear() - 5, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+            break;
+        case 'all':
+        default:
+            startDate = null;
+            break;
+    }
+    
+    document.getElementById('chartStartDate').value = startDate || '';
+    filterChartByDate(startDate);
+    
+    // Save period preference to localStorage
+    localStorage.setItem('chartPeriod', period);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('chartStartDate');
+    if (dateInput) {
+        dateInput.addEventListener('change', function() {
+            // Clear radio buttons when custom date is selected
+            document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
+            filterChartByDate(this.value);
+            localStorage.removeItem('chartPeriod'); // Clear period preference for custom date
+        });
+        
+        if (originalChartData.dates.length > 0) {
+            dateInput.min = originalChartData.dates[0];
+            dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
+        }
+    }
+    
+    // Add radio button event listeners
+    document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                setChartPeriod(this.value);
+            }
+        });
+    });
+    
+    // Restore saved preferences
+    const savedPeriod = localStorage.getItem('chartPeriod');
+    const savedStartDate = localStorage.getItem('chartStartDate');
+    
+    if (savedPeriod && savedPeriod !== 'all') {
+        // Restore radio button selection
+        const radioButton = document.getElementById(savedPeriod);
+        if (radioButton) {
+            radioButton.checked = true;
+            setChartPeriod(savedPeriod);
+        }
+    } else if (savedStartDate) {
+        // Restore custom date
+        dateInput.value = savedStartDate;
+        filterChartByDate(savedStartDate);
+        document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
     }
 });
 
