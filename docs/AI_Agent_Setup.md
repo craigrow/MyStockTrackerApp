@@ -26,11 +26,20 @@ git merge main     # Sync with latest main changes
 # Then proceed with development
 ```
 
+**After GitHub Actions deployment completes:**
+```bash
+# IMPORTANT: Sync local repo with GitHub after automated deployment
+git checkout main && git pull origin main
+git checkout devQ && git pull origin devQ
+# GitHub Actions merges branches on GitHub, not locally
+```
+
 **Why this matters:**
 - Prevents merge conflicts during automated deployments
 - Ensures your branch has the latest production changes
 - Avoids deployment failures in GitHub Actions
 - Maintains clean git history
+- **Local repo can be out of sync after GitHub Actions automated merges**
 
 ## Deployment Automation (GitHub Actions CI/CD)
 1. **Automated Workflow**: Push to devQ or devR triggers GitHub Actions automation:
@@ -56,6 +65,11 @@ git merge main     # Sync with latest main changes
    # Test dev environment for UAT
    # Approve via GitHub Actions interface
    # Production deploys automatically
+   
+   # STEP 4: Sync local with GitHub after deployment
+   git checkout main && git pull origin main
+   git checkout devQ && git pull origin devQ
+   # This ensures local repo reflects GitHub Actions merges
    ```
 
 3. **Multi-Agent Coordination**: Two AI agents work simultaneously on devQ and devR branches. UAT approval gates prevent conflicts, but coordination is important.
@@ -64,6 +78,8 @@ git merge main     # Sync with latest main changes
    - **ALWAYS** sync dev branches with main before starting work
    - Check for recent main branch updates before each development session
    - Resolve any merge conflicts in dev environment, never in production workflow
+   - **ALWAYS** pull latest changes after GitHub Actions deployment completes
+   - Local repository may be out of sync with GitHub after automated merges
 
 4. **Documentation**: See `docs/automation/github-actions-cicd-plan.md` for complete automation details.
 
