@@ -434,7 +434,12 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
     
     if not transactions:
-        return None
+        return {
+            'dates': [],
+            'portfolio_values': [],
+            'voo_values': [],
+            'qqq_values': []
+        }
     
     # Get date range from first transaction to today
     end_date = date.today()
@@ -635,7 +640,7 @@ def get_price_from_dataframe(price_df, date_str):
             if isinstance(price, pd.Series):
                 return float(price.iloc[0])
             return float(price)
-    except (KeyError, IndexError, ValueError):
+    except (KeyError, IndexError, ValueError, Exception):
         pass
     
     try:
@@ -647,7 +652,7 @@ def get_price_from_dataframe(price_df, date_str):
             if isinstance(price, pd.Series):
                 return float(price.iloc[0])
             return float(price)
-    except (KeyError, IndexError, ValueError):
+    except (KeyError, IndexError, ValueError, Exception):
         pass
     
     return None
