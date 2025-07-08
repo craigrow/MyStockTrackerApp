@@ -86,7 +86,7 @@ jobs:
         chmod +x scripts/verify_deployment.sh
         ./scripts/verify_deployment.sh devr || echo "⚠️ Verification failed but deployment may still be successful - check manually"
 
-  promote-to-main:
+  promote-to-main-devq:
     needs: [test, deploy-devq]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/devQ'
@@ -111,6 +111,41 @@ jobs:
     - name: Deploy to Production Heroku
       run: |
         git remote add heroku-prod https://:${{secrets.HEROKU_API_KEY}}@git.heroku.com/mystocktrackerapp-prod.git
+        git push heroku-prod HEAD:main --force
+    
+    - name: Verify Production Deployment
+      continue-on-error: true
+      run: |
+        chmod +x scripts/verify_deployment.sh
+        ./scripts/verify_deployment.sh prod || echo "⚠️ Verification failed but deployment may still be successful - check manually"
+
+  promote-to-main-devr:
+    needs: [test, deploy-devr]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/devR'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{secrets.GITHUB_TOKEN}}
+        persist-credentials: true
+    
+    - name: Merge devR to main and deploy
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git checkout main
+        git pull origin main
+        git merge devR --no-ff -m "Auto-merge devR to main after UAT approval"
+        git push https://${{secrets.GITHUB_TOKEN}}@github.com/craigrow/MyStockTrackerApp.git main
+    
+    - name: Deploy to Production Heroku
+      env:
+        HEROKU_API_KEY: ${{secrets.HEROKU_API_KEY}}
+      run: |
+        git remote add heroku-prod https://:${HEROKU_API_KEY}@git.heroku.com/mystocktrackerapp-prod.git
         git push heroku-prod HEAD:main --force
     
     - name: Verify Production Deployment
