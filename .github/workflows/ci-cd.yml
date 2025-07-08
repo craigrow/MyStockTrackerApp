@@ -63,6 +63,29 @@ jobs:
         chmod +x scripts/verify_deployment.sh
         ./scripts/verify_deployment.sh devq || echo "⚠️ Verification failed but deployment may still be successful - check manually"
 
+  deploy-devr:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/devR'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Deploy to DevR Heroku
+      env:
+        HEROKU_API_KEY: ${{secrets.HEROKU_API_KEY}}
+      run: |
+        git remote add heroku-devr https://:${HEROKU_API_KEY}@git.heroku.com/mystocktrackerapp-devr.git
+        git push heroku-devr HEAD:main --force
+    
+    - name: Verify DevR Deployment
+      continue-on-error: true
+      run: |
+        chmod +x scripts/verify_deployment.sh
+        ./scripts/verify_deployment.sh devr || echo "⚠️ Verification failed but deployment may still be successful - check manually"
+
   promote-to-main:
     needs: [test, deploy-devq]
     runs-on: ubuntu-latest
