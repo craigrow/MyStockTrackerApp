@@ -168,12 +168,17 @@
 {% block scripts %}
 <script>
 // Handle comparison toggle
-$('input[name="comparison"]').change(function() {
+document.addEventListener('DOMContentLoaded', function() {
+    const comparisonInputs = document.querySelectorAll('input[name="comparison"]');
     const portfolioId = '{{ current_portfolio.id if current_portfolio else "" }}';
-    const comparison = $(this).val();
-    if (portfolioId) {
-        window.location.href = `/cash-flows?portfolio_id=${portfolioId}&comparison=${comparison}`;
-    }
+    
+    comparisonInputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+            if (portfolioId && this.checked) {
+                window.location.href = `/cash-flows?portfolio_id=${portfolioId}&comparison=${this.value}`;
+            }
+        });
+    });
 });
 </script>
 {% endblock %}
