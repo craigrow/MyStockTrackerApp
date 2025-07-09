@@ -62,9 +62,10 @@ def cash_flows_page():
 
 @cash_flows_blueprint.route('/cash-flows/export')
 def export_cash_flows():
-    """Export cash flows to CSV"""
+    """Export cash flows to CSV with filtering"""
     portfolio_service = PortfolioService()
     cash_flow_service = CashFlowService()
+    etf_service = ETFComparisonService()
     
     # Get portfolio
     portfolio_id = request.args.get('portfolio_id')
@@ -75,8 +76,17 @@ def export_cash_flows():
     if not portfolio:
         return "Portfolio not found", 404
     
-    # Get cash flows
-    cash_flows = cash_flow_service.get_cash_flows(portfolio_id)
+    # Get comparison type and cash flows
+    comparison = request.args.get('comparison', 'portfolio')
+    if comparison in ['VOO', 'QQQ']:
+        cash_flows = etf_service.get_etf_cash_flows(portfolio_id, comparison)
+    else:
+        cash_flows = cash_flow_service.get_cash_flows(portfolio_id)
+    
+    # Get filter types
+    filter_types = request.args.getlist('types')
+    if filter_types:
+        cash_flows = [cf for cf in cash_flows if cf.flow_type in filter_types or cf.get('flow_type') in filter_types]
     
     # Create CSV
     output = io.StringIO()
@@ -87,17 +97,29 @@ def export_cash_flows():
     
     # Write data
     for flow in cash_flows:
-        writer.writerow([
-            flow.date.strftime('%Y-%m-%d'),
-            flow.flow_type,
-            flow.description,
-            f"{flow.amount:.2f}",
-            f"{flow.running_balance:.2f}"
-        ])
+        if hasattr(flow, 'date'):
+            # Database object
+            writer.writerow([
+                flow.date.strftime('%Y-%m-%d'),
+                flow.flow_type,
+                flow.description,
+                f"{flow.amount:.2f}",
+                f"{flow.running_balance:.2f}"
+            ])
+        else:
+            # Dictionary object (ETF flows)
+            writer.writerow([
+                flow['date'].strftime('%Y-%m-%d'),
+                flow['flow_type'],
+                flow['description'],
+                f"{flow['amount']:.2f}",
+                f"{flow['running_balance']:.2f}"
+            ])
     
     # Create response
     output.seek(0)
-    filename = f"cash_flows_{portfolio.name.replace(' ', '_')}_{portfolio_id[:8]}.csv"
+    comparison_suffix = f"_{comparison}" if comparison != 'portfolio' else ""
+    filename = f"cash_flows_{portfolio.name.replace(' ', '_')}{comparison_suffix}_{portfolio_id[:8]}.csv"
     
     return Response(
         output.getvalue(),

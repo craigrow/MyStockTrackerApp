@@ -72,7 +72,7 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Cash Flow History</h5>
-                <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
                     {% if current_portfolio %}
                     <div class="btn-group" role="group">
                         <input type="radio" class="btn-check" name="comparison" id="portfolio-radio" value="portfolio" 
@@ -87,10 +87,25 @@
                                {% if comparison == 'QQQ' %}checked{% endif %}>
                         <label class="btn btn-outline-primary btn-sm" for="qqq-radio">QQQ</label>
                     </div>
+                    
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">Filter:</small>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="filter-deposit" value="DEPOSIT" checked>
+                            <label class="form-check-label" for="filter-deposit"><span class="badge bg-primary">DEPOSIT</span></label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="filter-dividend" value="DIVIDEND" checked>
+                            <label class="form-check-label" for="filter-dividend"><span class="badge bg-success">DIVIDEND</span></label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="filter-purchase" value="PURCHASE" checked>
+                            <label class="form-check-label" for="filter-purchase"><span class="badge bg-danger">PURCHASE</span></label>
+                        </div>
+                    </div>
                     {% endif %}
                     {% if current_portfolio and cash_flows %}
-                    <a href="{{ url_for('cash_flows.export_cash_flows', portfolio_id=current_portfolio.id) }}" 
-                       class="btn btn-outline-primary btn-sm">
+                    <a href="#" id="export-csv-btn" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-download me-1"></i>Export CSV
                     </a>
                     {% endif %}
@@ -113,15 +128,16 @@
                                     <th class="text-end d-none d-sm-table-cell">Balance</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="cash-flows-tbody">
                                 {% for flow in cash_flows %}
-                                <tr>
+                                <tr data-flow-type="{{ flow.flow_type }}">
                                     <td>
                                         <span class="d-block">{{ flow.date.strftime('%m/%d/%Y') }}</span>
                                         <small class="text-muted d-md-none">{{ flow.description }}</small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ 'success' if flow.flow_type in ['DEPOSIT', 'SALE', 'DIVIDEND'] else 'danger' }}">
+                                        {% set badge_color = 'primary' if flow.flow_type == 'DEPOSIT' else ('success' if flow.flow_type == 'DIVIDEND' else ('info' if flow.flow_type == 'SALE' else 'danger')) %}
+                                        <span class="badge bg-{{ badge_color }}">
                                             {{ flow.flow_type }}
                                         </span>
                                     </td>
@@ -167,11 +183,13 @@
 
 {% block scripts %}
 <script>
-// Handle comparison toggle
+// Handle comparison toggle and filtering
 document.addEventListener('DOMContentLoaded', function() {
     const comparisonInputs = document.querySelectorAll('input[name="comparison"]');
+    const filterInputs = document.querySelectorAll('input[type="checkbox"][id^="filter-"]');
     const portfolioId = '{{ current_portfolio.id if current_portfolio else "" }}';
     
+    // Comparison toggle
     comparisonInputs.forEach(function(input) {
         input.addEventListener('change', function() {
             if (portfolioId && this.checked) {
@@ -179,6 +197,57 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Flow type filtering
+    function filterRows() {
+        const checkedTypes = Array.from(filterInputs)
+            .filter(input => input.checked)
+            .map(input => input.value);
+        
+        const rows = document.querySelectorAll('#cash-flows-tbody tr');
+        rows.forEach(function(row) {
+            const flowType = row.getAttribute('data-flow-type');
+            if (checkedTypes.includes(flowType)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    filterInputs.forEach(function(input) {
+        input.addEventListener('change', filterRows);
+    });
+    
+    // Update export link with current filters
+    function updateExportLink() {
+        const exportBtn = document.getElementById('export-csv-btn');
+        if (exportBtn && portfolioId) {
+            const checkedTypes = Array.from(filterInputs)
+                .filter(input => input.checked)
+                .map(input => input.value);
+            const comparison = document.querySelector('input[name="comparison"]:checked')?.value || 'portfolio';
+            
+            let url = `/cash-flows/export?portfolio_id=${portfolioId}&comparison=${comparison}`;
+            if (checkedTypes.length > 0) {
+                checkedTypes.forEach(type => {
+                    url += `&types=${type}`;
+                });
+            }
+            exportBtn.href = url;
+        }
+    }
+    
+    // Update export link on filter change
+    filterInputs.forEach(function(input) {
+        input.addEventListener('change', updateExportLink);
+    });
+    comparisonInputs.forEach(function(input) {
+        input.addEventListener('change', updateExportLink);
+    });
+    
+    // Initial export link setup
+    updateExportLink();
 });
 </script>
 {% endblock %}
