@@ -25,14 +25,13 @@ class IRRCalculationService:
             
             # From investor perspective:
             # DEPOSIT = money out of pocket (negative)
-            # PURCHASE = already accounted for in deposit
+            # PURCHASE = money out of pocket (negative) - for ETF comparisons
             # SALE = money received (positive) 
             # DIVIDEND = money received (positive)
-            if flow_type == 'DEPOSIT':
-                net_flows_by_date[flow_date] -= flow_amount  # Outflow
+            if flow_type in ['DEPOSIT', 'PURCHASE']:
+                net_flows_by_date[flow_date] += flow_amount  # Outflow (amount is already negative)
             elif flow_type in ['SALE', 'DIVIDEND']:
-                net_flows_by_date[flow_date] += flow_amount  # Inflow
-            # Skip PURCHASE as it's already accounted for in DEPOSIT
+                net_flows_by_date[flow_date] += flow_amount  # Inflow (amount is positive)
         
         # Add current value as final inflow if positive
         if current_value > 0:
