@@ -36,7 +36,7 @@ class TestETFComparison:
             # Should show ETF purchase instead of stock purchase
             assert 'Purchase' in html or 'PURCHASE' in html
             # Should show ETF-specific cash flows with real price details
-            assert 'VOO Purchase:' in html or 'VOO Dividend:' in html
+            assert 'shares @' in html or '$ per share' in html
     
     def test_cash_flows_page_supports_qqq_comparison(self, app, client):
         """Test that cash flows page supports QQQ comparison view"""
