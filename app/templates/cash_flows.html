@@ -35,7 +35,7 @@
 {% if current_portfolio %}
 <!-- Portfolio Summary Cards -->
 <div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
+    <div class="col-md-4 col-sm-6 mb-3">
         <div class="card bg-primary text-white h-100">
             <div class="card-body">
                 <h6 class="card-title">Total Invested</h6>
@@ -43,25 +43,15 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-3">
+    <div class="col-md-4 col-sm-6 mb-3">
         <div class="card bg-success text-white h-100">
             <div class="card-body">
-                <h6 class="card-title">Total Returned</h6>
+                <h6 class="card-title">Total Return</h6>
                 <h4>${{ "{:,.2f}".format(portfolio_summary.total_returned) }}</h4>
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card bg-info text-white h-100">
-            <div class="card-body">
-                <h6 class="card-title">Net Cash Flow</h6>
-                <h4 class="{{ 'text-success' if portfolio_summary.net_cash_flow >= 0 else 'text-danger' }}">
-                    ${{ "{:,.2f}".format(portfolio_summary.net_cash_flow) }}
-                </h4>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
+    <div class="col-md-4 col-sm-6 mb-3">
         <div class="card bg-warning text-dark h-100">
             <div class="card-body">
                 <h6 class="card-title">IRR (Annual)</h6>

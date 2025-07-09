@@ -151,11 +151,18 @@ class IRRCalculationService:
             if flow['flow_type'] == 'DEPOSIT'
         )
         
-        total_returned = sum(
+        # Total returned = current portfolio value + cash received from sales/dividends
+        cash_received = sum(
             flow['amount'] for flow in cash_flows 
             if flow['flow_type'] in ['SALE', 'DIVIDEND']
         )
         
+        # Get current portfolio value
+        from app.services.portfolio_service import PortfolioService
+        portfolio_service = PortfolioService()
+        current_value = portfolio_service.get_portfolio_current_value(portfolio_id)
+        
+        total_returned = current_value + cash_received
         net_cash_flow = total_returned - total_invested
         
         # Get latest IRR calculation or calculate new one
