@@ -158,9 +158,23 @@ class IRRCalculationService:
         
         net_cash_flow = total_returned - total_invested
         
-        # Get latest IRR calculation
+        # Get latest IRR calculation or calculate new one
         latest_irr = self.get_latest_irr_calculation(portfolio_id)
-        irr_value = latest_irr.irr_value if latest_irr else 0.00
+        if latest_irr:
+            irr_value = latest_irr.irr_value
+        else:
+            # Calculate IRR if none exists
+            from app.services.portfolio_service import PortfolioService
+            portfolio_service = PortfolioService()
+            current_value = portfolio_service.get_portfolio_current_value(portfolio_id)
+            irr_value = self.calculate_irr(cash_flows, current_value)
+            
+            # Save the calculation for future use
+            try:
+                self.save_irr_calculation(portfolio_id, irr_value, total_invested, current_value)
+            except Exception as e:
+                print(f"Error saving IRR calculation: {e}")
+                db.session.rollback()
         
         return {
             'total_invested': total_invested,
