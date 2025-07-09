@@ -647,7 +647,7 @@ def get_price_from_dataframe(price_df, date_str):
             if isinstance(price, pd.Series):
                 return float(price.iloc[0])
             return float(price)
-    except (KeyError, IndexError, ValueError, Exception):
+    except Exception:
         pass
     
     try:
@@ -659,7 +659,15 @@ def get_price_from_dataframe(price_df, date_str):
             if isinstance(price, pd.Series):
                 return float(price.iloc[0])
             return float(price)
-    except (KeyError, IndexError, ValueError, Exception):
+    except Exception:
+        pass
+    
+    # If all else fails, try to get any available price
+    try:
+        if not price_df.empty and 'Close' in price_df.columns:
+            price = price_df['Close'].iloc[-1]  # Get last available price
+            return float(price)
+    except Exception:
         pass
     
     return None
