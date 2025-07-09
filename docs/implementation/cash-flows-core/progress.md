@@ -42,10 +42,13 @@
 - [x] Page-level integration (dashboard and cash flows routes)
 
 ### UI Components
-- [ ] Cash Flows tab in navigation
-- [ ] Cash flow table component
-- [ ] Summary metrics cards
-- [ ] Route handlers for cash flows
+- [x] Cash Flows tab in navigation
+- [x] Cash flow table component with responsive design
+- [x] Summary metrics cards (Total Invested, IRR, etc.)
+- [x] Route handlers for cash flows
+- [x] Dashboard integration (View Cash Flows button)
+- [x] Breadcrumb navigation
+- [x] Mobile-responsive layout
 
 ### Testing
 - [x] Unit tests for CashFlow model (6 tests)
@@ -53,7 +56,7 @@
 - [x] Unit tests for CashFlowService (8 tests)
 - [x] Unit tests for IRRCalculationService (8 tests)
 - [x] Data synchronization tests (8 tests)
-- [ ] Integration tests for cash flows tab
+- [x] UI integration tests (5 tests)
 
 ### Integration
 - [ ] Cash flow generation from transactions

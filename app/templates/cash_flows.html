@@ -3,10 +3,21 @@
 {% block title %}Cash Flows - MyStockTracker{% endblock %}
 
 {% block content %}
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Cash Flows</li>
+    </ol>
+</nav>
+
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Cash Flows Analysis</h1>
+            <div>
+                <h1>Cash Flows Analysis</h1>
+                <p class="text-muted mb-0">Track money in/out and calculate Internal Rate of Return (IRR)</p>
+            </div>
             <div class="dropdown">
                 <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                     {{ current_portfolio.name if current_portfolio else 'Select Portfolio' }}
@@ -64,36 +75,43 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Cash Flow History</h5>
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Showing all money in/out from investor perspective
+                </small>
             </div>
             <div class="card-body">
                 {% if cash_flows %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
                                     <th>Type</th>
-                                    <th>Description</th>
+                                    <th class="d-none d-md-table-cell">Description</th>
                                     <th class="text-end">Amount</th>
-                                    <th class="text-end">Running Balance</th>
+                                    <th class="text-end d-none d-sm-table-cell">Balance</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for flow in cash_flows %}
                                 <tr>
-                                    <td>{{ flow.date.strftime('%m/%d/%Y') }}</td>
+                                    <td>
+                                        <span class="d-block">{{ flow.date.strftime('%m/%d/%Y') }}</span>
+                                        <small class="text-muted d-md-none">{{ flow.description }}</small>
+                                    </td>
                                     <td>
                                         <span class="badge bg-{{ 'success' if flow.flow_type in ['DEPOSIT', 'SALE', 'DIVIDEND'] else 'danger' }}">
                                             {{ flow.flow_type }}
                                         </span>
                                     </td>
-                                    <td>{{ flow.description }}</td>
+                                    <td class="d-none d-md-table-cell">{{ flow.description }}</td>
                                     <td class="text-end {{ 'text-success' if flow.amount >= 0 else 'text-danger' }}">
-                                        ${{ "{:,.2f}".format(flow.amount) }}
+                                        <strong>${{ "{:,.2f}".format(flow.amount) }}</strong>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end d-none d-sm-table-cell">
                                         ${{ "{:,.2f}".format(flow.running_balance) }}
                                     </td>
                                 </tr>
@@ -109,41 +127,7 @@
     </div>
 </div>
 
-<!-- Debug Info (Development Only) -->
-{% if sync_status %}
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="card-title mb-0">Synchronization Status</h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Data Current:</strong> 
-                            <span class="badge bg-{{ 'success' if sync_status.is_current else 'warning' }}">
-                                {{ 'Yes' if sync_status.is_current else 'No' }}
-                            </span>
-                        </p>
-                        <p><strong>Cash Flows:</strong> {{ sync_status.cash_flow_count }}</p>
-                        <p><strong>Transactions:</strong> {{ sync_status.transaction_count }}</p>
-                        <p><strong>Dividends:</strong> {{ sync_status.dividend_count }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Current Hash:</strong> <code>{{ sync_status.current_hash }}</code></p>
-                        <p><strong>Stored Hash:</strong> <code>{{ sync_status.stored_hash or 'None' }}</code></p>
-                        <p><strong>Needs Regeneration:</strong> 
-                            <span class="badge bg-{{ 'warning' if sync_status.needs_regeneration else 'success' }}">
-                                {{ 'Yes' if sync_status.needs_regeneration else 'No' }}
-                            </span>
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+
 
 {% else %}
 <div class="row">
