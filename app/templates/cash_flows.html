@@ -46,8 +46,13 @@
     <div class="col-md-4 col-sm-6 mb-3">
         <div class="card bg-success text-white h-100">
             <div class="card-body">
-                <h6 class="card-title">Total Return</h6>
-                <h4>${{ "{:,.2f}".format(portfolio_summary.total_returned) }}</h4>
+                <h6 class="card-title">Portfolio Value</h6>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.portfolio_value) }}</h4>
+                <small class="text-light">
+                    Investment Gain: ${{ "{:,.0f}".format(portfolio_summary.investment_gain) }}<br>
+                    Cash: ${{ "{:,.0f}".format(portfolio_summary.cash_balance) }}<br>
+                    Dividends: ${{ "{:,.0f}".format(portfolio_summary.dividends_received) }}
+                </small>
             </div>
         </div>
     </div>

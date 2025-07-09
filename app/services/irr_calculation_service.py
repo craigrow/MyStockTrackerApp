@@ -151,18 +151,27 @@ class IRRCalculationService:
             if flow['flow_type'] == 'DEPOSIT'
         )
         
-        # Total returned = current portfolio value + cash received from sales/dividends
-        cash_received = sum(
-            flow['amount'] for flow in cash_flows 
-            if flow['flow_type'] in ['SALE', 'DIVIDEND']
-        )
-        
-        # Get current portfolio value
+        # Calculate portfolio value breakdown
         from app.services.portfolio_service import PortfolioService
         portfolio_service = PortfolioService()
-        current_value = portfolio_service.get_portfolio_current_value(portfolio_id)
         
-        total_returned = current_value + cash_received
+        # Get current portfolio value (holdings + cash)
+        portfolio_value = portfolio_service.get_portfolio_current_value(portfolio_id)
+        
+        # Get cash balance
+        cash_balance = portfolio_service.get_cash_balance(portfolio_id)
+        
+        # Calculate dividends received
+        dividends_received = sum(
+            flow['amount'] for flow in cash_flows 
+            if flow['flow_type'] == 'DIVIDEND'
+        )
+        
+        # Calculate investment gain (portfolio value - cash - total invested - dividends)
+        investment_gain = portfolio_value - cash_balance - total_invested - dividends_received
+        
+        # For backward compatibility
+        total_returned = portfolio_value
         net_cash_flow = total_returned - total_invested
         
         # Get latest IRR calculation or calculate new one
@@ -186,6 +195,10 @@ class IRRCalculationService:
         return {
             'total_invested': total_invested,
             'total_returned': total_returned,
+            'portfolio_value': portfolio_value,
+            'investment_gain': investment_gain,
+            'cash_balance': cash_balance,
+            'dividends_received': dividends_received,
             'net_cash_flow': net_cash_flow,
             'irr': irr_value,
             'cash_flows': cash_flows
