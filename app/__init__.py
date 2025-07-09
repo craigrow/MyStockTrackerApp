@@ -27,7 +27,9 @@ def create_app(config_name=None):
     # Register blueprints
     from app.views.main import main_blueprint
     from app.views.portfolio import portfolio_blueprint
+    from app.views.cash_flows import cash_flows_blueprint
     app.register_blueprint(main_blueprint)
     app.register_blueprint(portfolio_blueprint)
+    app.register_blueprint(cash_flows_blueprint)
     
     return app

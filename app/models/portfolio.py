@@ -13,10 +13,15 @@ class Portfolio(db.Model):
     creation_date = db.Column(db.DateTime, default=datetime.utcnow)
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Cash flow synchronization
+    cash_flow_data_hash = db.Column(db.String(64))
+    
     # Relationships
     transactions = db.relationship('StockTransaction', backref='portfolio', lazy=True)
     dividends = db.relationship('Dividend', backref='portfolio', lazy=True)
     cash_balance = db.relationship('CashBalance', backref='portfolio', uselist=False)
+    cash_flows = db.relationship('CashFlow', backref='portfolio', lazy=True)
+    irr_calculations = db.relationship('IRRCalculation', backref='portfolio', lazy=True)
 
 
 class StockTransaction(db.Model):

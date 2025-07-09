@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Flows - MyStockTracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Cash Flows Analysis</h1>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    {{ current_portfolio.name if current_portfolio else 'Select Portfolio' }}
+                </button>
+                <ul class="dropdown-menu">
+                    {% for portfolio in portfolios %}
+                        <li><a class="dropdown-item" href="{{ url_for('cash_flows.cash_flows_page', portfolio_id=portfolio.id) }}">{{ portfolio.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_portfolio %}
+<!-- Portfolio Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title">Total Invested</h6>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.total_invested) }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title">Total Returned</h6>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.total_returned) }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title">Net Cash Flow</h6>
+                <h4 class="{{ 'text-success' if portfolio_summary.net_cash_flow >= 0 else 'text-danger' }}">
+                    ${{ "{:,.2f}".format(portfolio_summary.net_cash_flow) }}
+                </h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-warning text-dark h-100">
+            <div class="card-body">
+                <h6 class="card-title">IRR (Annual)</h6>
+                <h4>{{ "{:.2f}".format(portfolio_summary.irr * 100) }}%</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cash Flows Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Cash Flow History</h5>
+            </div>
+            <div class="card-body">
+                {% if cash_flows %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Running Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for flow in cash_flows %}
+                                <tr>
+                                    <td>{{ flow.date.strftime('%m/%d/%Y') }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if flow.flow_type in ['DEPOSIT', 'SALE', 'DIVIDEND'] else 'danger' }}">
+                                            {{ flow.flow_type }}
+                                        </span>
+                                    </td>
+                                    <td>{{ flow.description }}</td>
+                                    <td class="text-end {{ 'text-success' if flow.amount >= 0 else 'text-danger' }}">
+                                        ${{ "{:,.2f}".format(flow.amount) }}
+                                    </td>
+                                    <td class="text-end">
+                                        ${{ "{:,.2f}".format(flow.running_balance) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No cash flows found. <a href="{{ url_for('portfolio.add_transaction') }}">Add your first transaction</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Debug Info (Development Only) -->
+{% if sync_status %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Synchronization Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Data Current:</strong> 
+                            <span class="badge bg-{{ 'success' if sync_status.is_current else 'warning' }}">
+                                {{ 'Yes' if sync_status.is_current else 'No' }}
+                            </span>
+                        </p>
+                        <p><strong>Cash Flows:</strong> {{ sync_status.cash_flow_count }}</p>
+                        <p><strong>Transactions:</strong> {{ sync_status.transaction_count }}</p>
+                        <p><strong>Dividends:</strong> {{ sync_status.dividend_count }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Current Hash:</strong> <code>{{ sync_status.current_hash }}</code></p>
+                        <p><strong>Stored Hash:</strong> <code>{{ sync_status.stored_hash or 'None' }}</code></p>
+                        <p><strong>Needs Regeneration:</strong> 
+                            <span class="badge bg-{{ 'warning' if sync_status.needs_regeneration else 'success' }}">
+                                {{ 'Yes' if sync_status.needs_regeneration else 'No' }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="row">
+    <div class="col-12 text-center">
+        <div class="card">
+            <div class="card-body py-5">
+                <i class="fas fa-chart-line fa-4x text-muted mb-4"></i>
+                <h3>Welcome to Cash Flows Analysis</h3>
+                <p class="text-muted mb-4">Create a portfolio to analyze your investment cash flows and IRR.</p>
+                <a href="{{ url_for('portfolio.create') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus me-2"></i>Create Portfolio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

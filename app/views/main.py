@@ -136,6 +136,10 @@ def dashboard():
     portfolio_service = PortfolioService()
     price_service = PriceService()
     
+    # Import here to avoid circular imports
+    from app.services.cash_flow_sync_service import CashFlowSyncService
+    cash_flow_sync_service = CashFlowSyncService()
+    
     # Get all portfolios
     portfolios = portfolio_service.get_all_portfolios()
     
@@ -155,6 +159,9 @@ def dashboard():
     data_warnings = []
     
     if current_portfolio:
+        # Ensure cash flows are synchronized with transaction data
+        cash_flow_sync_service.ensure_cash_flows_current(current_portfolio.id)
+        
         # Check for stale data and show clear warnings
         holdings = portfolio_service.get_current_holdings(current_portfolio.id)
         stale_holdings = []
