@@ -1,5 +1,6 @@
 from app.services.cash_flow_service import CashFlowService
 from app.services.price_service import PriceService
+from app.services.irr_calculation_service import IRRCalculationService
 from datetime import date
 import yfinance as yf
 
@@ -9,6 +10,7 @@ class ETFComparisonService:
     def __init__(self):
         self.cash_flow_service = CashFlowService()
         self.price_service = PriceService()
+        self.irr_service = IRRCalculationService()
     
     def get_etf_cash_flows(self, portfolio_id, etf_ticker):
         """Generate ETF cash flows based on portfolio deposits with real prices"""
@@ -38,7 +40,7 @@ class ETFComparisonService:
                     'date': deposit['date'],
                     'flow_type': 'PURCHASE',
                     'amount': -deposit['amount'],
-                    'description': f'{etf_ticker} Purchase: {shares_purchased:.4f} shares @ ${etf_price:.2f}',
+                    'description': f'{shares_purchased:.4f} shares @ ${etf_price:.2f}',
                     'running_balance': 0.0
                 })
         
@@ -87,13 +89,17 @@ class ETFComparisonService:
         
         investment_gain = current_value - total_invested - dividends_received
         
+        # Calculate proper IRR using ETF cash flows
+        etf_cash_flows = self.get_etf_cash_flows(portfolio_id, etf_ticker)
+        irr_value = self.irr_service.calculate_irr(etf_cash_flows, current_value)
+        
         return {
             'total_invested': total_invested,
             'portfolio_value': current_value,
             'investment_gain': investment_gain,
             'cash_balance': 0.0,
             'dividends_received': dividends_received,
-            'irr': self._calculate_simple_irr(total_invested, current_value, dividends_received, deposits)
+            'irr': irr_value
         }
     
     def _get_etf_dividend_flows(self, etf_ticker, deposits, total_shares):
@@ -121,7 +127,7 @@ class ETFComparisonService:
                             'date': div_date.date(),
                             'flow_type': 'DIVIDEND',
                             'amount': total_dividend,
-                            'description': f'{etf_ticker} Dividend: ${div_amount:.4f} per share',
+                            'description': f'${div_amount:.2f} per share',
                             'running_balance': 0.0
                         })
             
@@ -131,17 +137,3 @@ class ETFComparisonService:
             print(f"Failed to get dividend data for {etf_ticker}: {e}")
             return []
     
-    def _calculate_simple_irr(self, invested, current_value, dividends, deposits):
-        """Calculate simple IRR approximation"""
-        if not deposits or invested <= 0:
-            return 0.0
-        
-        # Simple time-weighted return approximation
-        total_return = (current_value + dividends - invested) / invested
-        
-        # Approximate time period in years
-        start_date = min(d['date'] for d in deposits)
-        years = max(0.1, (date.today() - start_date).days / 365.25)
-        
-        # Simple annualized return
-        return (1 + total_return) ** (1 / years) - 1 if years > 0 else 0.0
