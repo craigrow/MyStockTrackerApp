@@ -72,10 +72,18 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Cash Flow History</h5>
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Showing all money in/out from investor perspective
-                </small>
+                <div class="d-flex align-items-center gap-3">
+                    {% if current_portfolio and cash_flows %}
+                    <a href="{{ url_for('cash_flows.export_cash_flows', portfolio_id=current_portfolio.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-download me-1"></i>Export CSV
+                    </a>
+                    {% endif %}
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Showing all money in/out from investor perspective
+                    </small>
+                </div>
             </div>
             <div class="card-body">
                 {% if cash_flows %}

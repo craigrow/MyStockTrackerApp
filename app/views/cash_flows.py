@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, Response
 from app.services.portfolio_service import PortfolioService
 from app.services.cash_flow_sync_service import CashFlowSyncService
 from app.services.cash_flow_service import CashFlowService
 from app.services.irr_calculation_service import IRRCalculationService
+import csv
+import io
 
 cash_flows_blueprint = Blueprint('cash_flows', __name__)
 
@@ -46,3 +48,48 @@ def cash_flows_page():
                          cash_flows=cash_flows,
                          portfolio_summary=portfolio_summary,
                          sync_status=sync_status)
+
+@cash_flows_blueprint.route('/cash-flows/export')
+def export_cash_flows():
+    """Export cash flows to CSV"""
+    portfolio_service = PortfolioService()
+    cash_flow_service = CashFlowService()
+    
+    # Get portfolio
+    portfolio_id = request.args.get('portfolio_id')
+    if not portfolio_id:
+        return "Portfolio ID required", 400
+    
+    portfolio = portfolio_service.get_portfolio(portfolio_id)
+    if not portfolio:
+        return "Portfolio not found", 404
+    
+    # Get cash flows
+    cash_flows = cash_flow_service.get_cash_flows(portfolio_id)
+    
+    # Create CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['Date', 'Type', 'Description', 'Amount', 'Running Balance'])
+    
+    # Write data
+    for flow in cash_flows:
+        writer.writerow([
+            flow.date.strftime('%Y-%m-%d'),
+            flow.flow_type,
+            flow.description,
+            f"{flow.amount:.2f}",
+            f"{flow.running_balance:.2f}"
+        ])
+    
+    # Create response
+    output.seek(0)
+    filename = f"cash_flows_{portfolio.name.replace(' ', '_')}_{portfolio_id[:8]}.csv"
+    
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
