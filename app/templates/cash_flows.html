@@ -39,7 +39,7 @@
         <div class="card bg-primary text-white h-100">
             <div class="card-body">
                 <h6 class="card-title">Total Invested</h6>
-                <h4>${{ "{:,.2f}".format(portfolio_summary.total_invested) }}</h4>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.total_invested or 0) }}</h4>
             </div>
         </div>
     </div>
@@ -47,11 +47,11 @@
         <div class="card bg-success text-white h-100">
             <div class="card-body">
                 <h6 class="card-title">Portfolio Value</h6>
-                <h4>${{ "{:,.2f}".format(portfolio_summary.portfolio_value) }}</h4>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.portfolio_value or 0) }}</h4>
                 <small class="text-light">
-                    Investment Gain: ${{ "{:,.0f}".format(portfolio_summary.investment_gain) }}<br>
-                    Cash: ${{ "{:,.0f}".format(portfolio_summary.cash_balance) }}<br>
-                    Dividends: ${{ "{:,.0f}".format(portfolio_summary.dividends_received) }}
+                    Investment Gain: ${{ "{:,.0f}".format(portfolio_summary.investment_gain or 0) }}<br>
+                    Cash: ${{ "{:,.0f}".format(portfolio_summary.cash_balance or 0) }}<br>
+                    Dividends: ${{ "{:,.0f}".format(portfolio_summary.dividends_received or 0) }}
                 </small>
             </div>
         </div>
@@ -60,7 +60,7 @@
         <div class="card bg-warning text-dark h-100">
             <div class="card-body">
                 <h6 class="card-title">IRR (Annual)</h6>
-                <h4>{{ "{:.2f}".format(portfolio_summary.irr * 100) }}%</h4>
+                <h4>{{ "{:.2f}".format((portfolio_summary.irr or 0) * 100) }}%</h4>
             </div>
         </div>
     </div>
