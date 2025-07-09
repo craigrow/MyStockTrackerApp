@@ -3,6 +3,7 @@ from app.services.portfolio_service import PortfolioService
 from app.services.cash_flow_sync_service import CashFlowSyncService
 from app.services.cash_flow_service import CashFlowService
 from app.services.irr_calculation_service import IRRCalculationService
+from app.services.etf_comparison_service import ETFComparisonService
 from datetime import date
 import csv
 import io
@@ -39,22 +40,10 @@ def cash_flows_page():
         comparison = request.args.get('comparison', 'portfolio')
         
         if comparison in ['VOO', 'QQQ']:
-            # ETF comparison view - minimal implementation
-            cash_flows = [{
-                'date': date(2023, 1, 1),
-                'flow_type': 'PURCHASE',
-                'amount': -1500.00,
-                'description': f'{comparison} ETF Purchase',
-                'running_balance': 0.0
-            }]
-            portfolio_summary = {
-                'total_invested': 1500.00,
-                'portfolio_value': 1500.00,
-                'investment_gain': 0.0,
-                'cash_balance': 0.0,
-                'dividends_received': 0.0,
-                'irr': 0.0
-            }
+            # ETF comparison view - using real service
+            etf_service = ETFComparisonService()
+            cash_flows = etf_service.get_etf_cash_flows(current_portfolio.id, comparison)
+            portfolio_summary = etf_service.get_etf_summary(current_portfolio.id, comparison)
             sync_status = {'status': 'complete', 'message': f'{comparison} comparison data loaded'}
         else:
             # Portfolio view

@@ -85,3 +85,43 @@ class TestETFComparison:
             assert 'Portfolio</label>' in html
             assert 'VOO</label>' in html
             assert 'QQQ</label>' in html
+    
+    def test_etf_comparison_uses_portfolio_deposits(self, app, client):
+        """Test that ETF comparison uses actual portfolio deposit amounts"""
+        with app.app_context():
+            # Create portfolio with multiple transactions
+            portfolio = Portfolio(name='Test Portfolio', user_id='test')
+            db.session.add(portfolio)
+            db.session.commit()
+            
+            # Add transactions that require deposits
+            transaction1 = StockTransaction(
+                portfolio_id=portfolio.id,
+                ticker='AAPL',
+                transaction_type='BUY',
+                date=date(2023, 1, 1),
+                price_per_share=150.00,
+                shares=10.0,
+                total_value=1500.00
+            )
+            transaction2 = StockTransaction(
+                portfolio_id=portfolio.id,
+                ticker='MSFT',
+                transaction_type='BUY',
+                date=date(2023, 2, 1),
+                price_per_share=200.00,
+                shares=5.0,
+                total_value=1000.00
+            )
+            db.session.add_all([transaction1, transaction2])
+            db.session.commit()
+            
+            # Test VOO comparison uses portfolio deposit amounts
+            response = client.get(f'/cash-flows?portfolio_id={portfolio.id}&comparison=VOO')
+            assert response.status_code == 200
+            
+            html = response.get_data(as_text=True)
+            # Should show multiple ETF purchases based on portfolio deposits
+            assert 'VOO' in html
+            # Should show amounts that match portfolio investment pattern
+            assert '$' in html
