@@ -224,9 +224,14 @@ def dashboard():
                 
                 if not chart_data:
                     print("[CACHE] Calculating fresh chart data")
-                    chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
-                    if is_market_closed and chart_data:
-                        cache_chart_data(current_portfolio.id, market_date, chart_data)
+                    try:
+                        chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
+                        if is_market_closed and chart_data:
+                            cache_chart_data(current_portfolio.id, market_date, chart_data)
+                    except Exception as e:
+                        print(f"[CACHE] Error generating chart data: {e}")
+                        db.session.rollback()
+                        chart_data = {'dates': [], 'portfolio_values': [], 'voo_values': [], 'qqq_values': []}
                 else:
                     print("[CACHE] Using cached chart data")
             except Exception as e:
@@ -234,15 +239,26 @@ def dashboard():
                 import traceback
                 traceback.print_exc()
                 # Fallback to normal calculation
-                portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
-                chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
+                try:
+                    portfolio_stats = calculate_portfolio_stats(current_portfolio, portfolio_service, price_service)
+                    chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
+                except Exception as fallback_error:
+                    print(f"[CACHE] Error in fallback calculation: {fallback_error}")
+                    db.session.rollback()
+                    portfolio_stats = {'current_value': 0, 'total_gain_loss': 0, 'gain_loss_percentage': 0}
+                    chart_data = {'dates': [], 'portfolio_values': [], 'voo_values': [], 'qqq_values': []}
         
         # Get current holdings with performance (use stale data for fast load)
         holdings = get_holdings_with_performance(current_portfolio.id, portfolio_service, price_service, use_stale=True)
         
-        # Get recent transactions (last 10)
-        recent_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)[-10:]
-        recent_transactions.reverse()  # Show most recent first
+        # Get recent transactions (last 10) with proper error handling
+        try:
+            recent_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)[-10:]
+            recent_transactions.reverse()  # Show most recent first
+        except Exception as e:
+            print(f"Error getting recent transactions: {e}")
+            db.session.rollback()
+            recent_transactions = []
     else:
         chart_data = None
     
@@ -441,6 +457,17 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
     
     if not transactions:
+        return {
+            'dates': [],
+            'portfolio_values': [],
+            'voo_values': [],
+            'qqq_values': []
+        }
+    
+    # Get unique tickers and check if we have too many (performance optimization)
+    tickers = list(set(t.ticker for t in transactions))
+    if len(tickers) > 20:  # Skip chart generation for large portfolios to prevent timeout
+        print(f"[CHART] Skipping chart generation for portfolio with {len(tickers)} tickers (performance optimization)")
         return {
             'dates': [],
             'portfolio_values': [],
