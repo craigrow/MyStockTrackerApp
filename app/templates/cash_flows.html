@@ -73,6 +73,21 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Cash Flow History</h5>
                 <div class="d-flex align-items-center gap-3">
+                    {% if current_portfolio %}
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="comparison" id="portfolio-radio" value="portfolio" 
+                               {% if comparison == 'portfolio' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary btn-sm" for="portfolio-radio">Portfolio</label>
+                        
+                        <input type="radio" class="btn-check" name="comparison" id="voo-radio" value="VOO" 
+                               {% if comparison == 'VOO' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary btn-sm" for="voo-radio">VOO</label>
+                        
+                        <input type="radio" class="btn-check" name="comparison" id="qqq-radio" value="QQQ" 
+                               {% if comparison == 'QQQ' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary btn-sm" for="qqq-radio">QQQ</label>
+                    </div>
+                    {% endif %}
                     {% if current_portfolio and cash_flows %}
                     <a href="{{ url_for('cash_flows.export_cash_flows', portfolio_id=current_portfolio.id) }}" 
                        class="btn btn-outline-primary btn-sm">
@@ -81,7 +96,7 @@
                     {% endif %}
                     <small class="text-muted">
                         <i class="fas fa-info-circle me-1"></i>
-                        Showing all money in/out from investor perspective
+                        Showing {{ comparison|upper if comparison != 'portfolio' else 'portfolio' }} cash flows
                     </small>
                 </div>
             </div>
@@ -148,4 +163,17 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Handle comparison toggle
+$('input[name="comparison"]').change(function() {
+    const portfolioId = '{{ current_portfolio.id if current_portfolio else "" }}';
+    const comparison = $(this).val();
+    if (portfolioId) {
+        window.location.href = `/cash-flows?portfolio_id=${portfolioId}&comparison=${comparison}`;
+    }
+});
+</script>
 {% endblock %}
