@@ -68,14 +68,7 @@ class IRRCalculationService:
             periods = np.array([(d - start_date).days / 365.25 for d in dates])
             amounts = np.array(amounts)
             
-            # Debug logging for ETF comparisons
-            if any('PURCHASE' in str(flow.get('flow_type', '')) for flow in cash_flows if isinstance(flow, dict)):
-                print(f"\n=== IRR Debug ===")
-                print(f"Dates: {dates}")
-                print(f"Amounts: {amounts}")
-                print(f"Periods: {periods}")
-                print(f"Current Value: {current_value}")
-            
+
             # Define NPV function for IRR calculation
             def npv_function(rate):
                 if rate <= -1:  # Avoid division by zero/negative
@@ -91,8 +84,7 @@ class IRRCalculationService:
             else:
                 return 0.00
                 
-        except Exception as e:
-            print(f"IRR calculation error: {e}")
+        except Exception:
             return 0.00
     
 
