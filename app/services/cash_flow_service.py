@@ -91,6 +91,8 @@ class CashFlowService:
                         'flow_type': 'PURCHASE',
                         'amount': -transaction.total_value,
                         'description': f'Purchase: {transaction.ticker}',
+                        'shares': transaction.shares,
+                        'price_per_share': transaction.price_per_share,
                         'running_balance': running_balance
                     })
                 
@@ -101,12 +103,15 @@ class CashFlowService:
                         'flow_type': 'SALE',
                         'amount': transaction.total_value,
                         'description': f'Sale: {transaction.ticker}',
+                        'shares': transaction.shares,
+                        'price_per_share': transaction.price_per_share,
                         'running_balance': running_balance
                     })
             
             elif event['type'] == 'dividend':
                 dividend = event['data']
                 running_balance += dividend.total_amount
+                # For dividends, we don't have shares/price data in the dividend model
                 cash_flows.append({
                     'date': dividend.payment_date,
                     'flow_type': 'DIVIDEND',

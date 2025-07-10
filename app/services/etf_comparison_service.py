@@ -41,13 +41,18 @@ class ETFComparisonService:
                     'flow_type': 'PURCHASE',
                     'amount': -deposit['amount'],
                     'description': f'{shares_purchased:.4f} shares @ ${etf_price:.2f}',
+                    'shares': shares_purchased,
+                    'price_per_share': etf_price,
                     'running_balance': 0.0
                 })
         
         # Add dividend cash flows with reinvestment
         dividend_flows = self._get_etf_dividend_flows(etf_ticker, deposits, total_shares)
         for div_flow in dividend_flows:
-            # Add dividend payment
+            # Add dividend payment with per-share info
+            div_per_share = div_flow['amount'] / total_shares if total_shares > 0 else 0
+            div_flow['shares'] = total_shares
+            div_flow['price_per_share'] = div_per_share
             etf_cash_flows.append(div_flow)
             
             # Add immediate reinvestment
@@ -64,6 +69,8 @@ class ETFComparisonService:
                     'flow_type': 'PURCHASE',
                     'amount': -div_flow['amount'],  # Negative for purchase
                     'description': f'{reinvest_shares:.4f} shares @ ${div_price:.2f} (dividend reinvestment)',
+                    'shares': reinvest_shares,
+                    'price_per_share': div_price,
                     'running_balance': 0.0
                 })
         

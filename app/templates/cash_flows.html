@@ -124,6 +124,8 @@
                                     <th>Date</th>
                                     <th>Type</th>
                                     <th class="d-none d-md-table-cell">Description</th>
+                                    <th class="text-end d-none d-lg-table-cell">Shares</th>
+                                    <th class="text-end d-none d-lg-table-cell">$/Share</th>
                                     <th class="text-end">Amount</th>
                                     <th class="text-end d-none d-sm-table-cell">Balance</th>
                                 </tr>
@@ -142,6 +144,20 @@
                                         </span>
                                     </td>
                                     <td class="d-none d-md-table-cell">{{ flow.description }}</td>
+                                    <td class="text-end d-none d-lg-table-cell">
+                                        {% if flow.shares is defined and flow.shares %}
+                                            {{ "{:,.4f}".format(flow.shares) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end d-none d-lg-table-cell">
+                                        {% if flow.price_per_share is defined and flow.price_per_share %}
+                                            ${{ "{:,.2f}".format(flow.price_per_share) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
                                     <td class="text-end {{ 'text-success' if flow.amount >= 0 else 'text-danger' }}">
                                         <strong>${{ "{:,.2f}".format(flow.amount) }}</strong>
                                     </td>

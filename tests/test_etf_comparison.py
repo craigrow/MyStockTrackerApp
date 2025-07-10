@@ -171,3 +171,6 @@ class TestETFComparison:
             assert 'VOO' in html
             assert '4.2857' in html or '4.29' in html  # Share calculation
             assert '$350.00' in html  # Real price used
+            # Should show shares and price per share columns
+            assert 'Shares' in html
+            assert '$/Share' in html
