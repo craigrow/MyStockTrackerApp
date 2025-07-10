@@ -110,11 +110,12 @@ class ETFComparisonService:
         current_price = self.price_service.get_current_price(etf_ticker)
         current_value = total_shares * current_price if current_price else total_invested
         
-        # Get dividend total (but dividends are reinvested, so net cash flow is 0)
+        # Get dividend total for display (even though reinvested)
         dividend_flows = self._get_etf_dividend_flows(etf_ticker, deposits, total_shares)
-        dividends_received = 0.0  # Dividends are reinvested, not received as cash
+        dividends_received = sum(df['amount'] for df in dividend_flows if df['amount'] > 0)
         
-        investment_gain = current_value - total_invested  # Dividends are reinvested, not separate
+        # Investment gain = current value - total invested - dividends received
+        investment_gain = current_value - total_invested - dividends_received
         
         # Calculate proper IRR using ETF cash flows
         etf_cash_flows = self.get_etf_cash_flows(portfolio_id, etf_ticker)
