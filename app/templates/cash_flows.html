@@ -61,7 +61,7 @@
             <div class="card-body">
                 <h6 class="card-title">Portfolio IRR (Annual)</h6>
                 <h4>{{ "{:.2f}".format((portfolio_summary.irr or 0) * 100) }}%</h4>
-                <small class="text-light">
+                <small class="text-dark">
                     VOO IRR: {{ "{:.2f}".format((voo_irr or 0) * 100) }}%<br>
                     QQQ IRR: {{ "{:.2f}".format((qqq_irr or 0) * 100) }}%
                 </small>
