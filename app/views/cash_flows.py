@@ -34,14 +34,22 @@ def cash_flows_page():
     cash_flows = []
     portfolio_summary = {}
     sync_status = {}
+    voo_irr = 0.0
+    qqq_irr = 0.0
     
     if current_portfolio:
         # Get comparison type (portfolio, VOO, or QQQ)
         comparison = request.args.get('comparison', 'portfolio')
         
+        # Always calculate VOO and QQQ IRR for display
+        etf_service = ETFComparisonService()
+        voo_summary = etf_service.get_etf_summary(current_portfolio.id, 'VOO')
+        qqq_summary = etf_service.get_etf_summary(current_portfolio.id, 'QQQ')
+        voo_irr = voo_summary.get('irr', 0.0)
+        qqq_irr = qqq_summary.get('irr', 0.0)
+        
         if comparison in ['VOO', 'QQQ']:
             # ETF comparison view - using real service
-            etf_service = ETFComparisonService()
             cash_flows = etf_service.get_etf_cash_flows(current_portfolio.id, comparison)
             portfolio_summary = etf_service.get_etf_summary(current_portfolio.id, comparison)
             sync_status = {'status': 'complete', 'message': f'{comparison} comparison data loaded'}
@@ -58,6 +66,8 @@ def cash_flows_page():
                          cash_flows=cash_flows,
                          portfolio_summary=portfolio_summary,
                          sync_status=sync_status,
+                         voo_irr=voo_irr,
+                         qqq_irr=qqq_irr,
                          comparison=comparison if current_portfolio else 'portfolio')
 
 @cash_flows_blueprint.route('/cash-flows/export')
