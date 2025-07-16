@@ -184,12 +184,19 @@ class ETFComparisonService:
         """Calculate shares held on a specific date"""
         total_shares = 0.0
         
+        # Use current price as fallback to avoid multiple DB calls in production
+        fallback_price = self.price_service.get_current_price(etf_ticker)
+        
         # Add shares from deposits up to target date
         for deposit in deposits:
             if deposit['date'] <= target_date:
-                etf_price = self.price_service.get_cached_price(etf_ticker, deposit['date'])
-                if not etf_price:
-                    etf_price = self.price_service.get_current_price(etf_ticker)
+                # Try cached price first, fallback to current price to avoid timeouts
+                try:
+                    etf_price = self.price_service.get_cached_price(etf_ticker, deposit['date'])
+                    if not etf_price:
+                        etf_price = fallback_price
+                except Exception:
+                    etf_price = fallback_price
                 
                 if etf_price:
                     shares_purchased = deposit['amount'] / etf_price
@@ -198,10 +205,13 @@ class ETFComparisonService:
         # Add shares from dividend reinvestments up to target date
         for div_flow in previous_dividends:
             if div_flow['date'] < target_date and div_flow['flow_type'] == 'DIVIDEND':
-                # Get ETF price on dividend date for reinvestment
-                div_price = self.price_service.get_cached_price(etf_ticker, div_flow['date'])
-                if not div_price:
-                    div_price = self.price_service.get_current_price(etf_ticker)
+                # Use fallback price for dividend reinvestment to avoid timeouts
+                try:
+                    div_price = self.price_service.get_cached_price(etf_ticker, div_flow['date'])
+                    if not div_price:
+                        div_price = fallback_price
+                except Exception:
+                    div_price = fallback_price
                 
                 if div_price and div_flow['amount'] > 0:
                     reinvested_shares = div_flow['amount'] / div_price
