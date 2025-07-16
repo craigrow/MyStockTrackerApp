@@ -466,7 +466,8 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     
     # Get unique tickers and check if we have too many (performance optimization)
     tickers = list(set(t.ticker for t in transactions))
-    if len(tickers) > 20:  # Skip chart generation for large portfolios to prevent timeout
+    print(f"[CHART] Portfolio has {len(tickers)} unique tickers")
+    if len(tickers) > 50:  # Increased threshold from 20 to 50 tickers
         print(f"[CHART] Skipping chart generation for portfolio with {len(tickers)} tickers (performance optimization)")
         return {
             'dates': [],
