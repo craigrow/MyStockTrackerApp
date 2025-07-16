@@ -139,7 +139,7 @@ class ETFComparisonService:
     
     def _get_etf_dividend_flows(self, etf_ticker, deposits, total_shares):
         """Get ETF dividend cash flows using yfinance API"""
-        if not deposits or total_shares <= 0:
+        if not deposits:
             return []
         
         try:
@@ -153,13 +153,21 @@ class ETFComparisonService:
             dividend_flows = []
             start_date = min(d['date'] for d in deposits)
             
-            # Filter dividends after first deposit
-            for div_date, div_amount in dividends.items():
-                if div_date.date() >= start_date:
-                    total_dividend = float(div_amount) * total_shares
+            # Filter dividends after first deposit and sort by date
+            relevant_dividends = [(div_date.date(), float(div_amount)) 
+                                for div_date, div_amount in dividends.items() 
+                                if div_date.date() >= start_date]
+            relevant_dividends.sort(key=lambda x: x[0])
+            
+            # Calculate shares held at each dividend date
+            for div_date, div_amount in relevant_dividends:
+                shares_on_date = self._calculate_shares_on_date(etf_ticker, deposits, div_date, dividend_flows)
+                
+                if shares_on_date > 0:
+                    total_dividend = div_amount * shares_on_date
                     if total_dividend > 0.01:  # Only include meaningful dividends
                         dividend_flows.append({
-                            'date': div_date.date(),
+                            'date': div_date,
                             'flow_type': 'DIVIDEND',
                             'amount': total_dividend,
                             'description': f'${div_amount:.2f} per share',
@@ -171,4 +179,33 @@ class ETFComparisonService:
         except Exception as e:
             print(f"Failed to get dividend data for {etf_ticker}: {e}")
             return []
+    
+    def _calculate_shares_on_date(self, etf_ticker, deposits, target_date, previous_dividends):
+        """Calculate shares held on a specific date"""
+        total_shares = 0.0
+        
+        # Add shares from deposits up to target date
+        for deposit in deposits:
+            if deposit['date'] <= target_date:
+                etf_price = self.price_service.get_cached_price(etf_ticker, deposit['date'])
+                if not etf_price:
+                    etf_price = self.price_service.get_current_price(etf_ticker)
+                
+                if etf_price:
+                    shares_purchased = deposit['amount'] / etf_price
+                    total_shares += shares_purchased
+        
+        # Add shares from dividend reinvestments up to target date
+        for div_flow in previous_dividends:
+            if div_flow['date'] < target_date and div_flow['flow_type'] == 'DIVIDEND':
+                # Get ETF price on dividend date for reinvestment
+                div_price = self.price_service.get_cached_price(etf_ticker, div_flow['date'])
+                if not div_price:
+                    div_price = self.price_service.get_current_price(etf_ticker)
+                
+                if div_price and div_flow['amount'] > 0:
+                    reinvested_shares = div_flow['amount'] / div_price
+                    total_shares += reinvested_shares
+        
+        return total_shares
     
