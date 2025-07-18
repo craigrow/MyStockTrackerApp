@@ -23,7 +23,6 @@ class ETFComparisonService:
         
         # Convert deposits to ETF purchases with real prices
         etf_cash_flows = []
-        total_shares = 0.0
         
         for deposit in deposits:
             # Get ETF price on deposit date
@@ -34,7 +33,6 @@ class ETFComparisonService:
             
             if etf_price:
                 shares_purchased = deposit['amount'] / etf_price
-                total_shares += shares_purchased
                 
                 etf_cash_flows.append({
                     'date': deposit['date'],
@@ -47,32 +45,8 @@ class ETFComparisonService:
                 })
         
         # Add dividend cash flows with reinvestment
-        dividend_flows = self._get_etf_dividend_flows(etf_ticker, deposits, total_shares)
-        for div_flow in dividend_flows:
-            # Add dividend payment with per-share info
-            div_per_share = div_flow['amount'] / total_shares if total_shares > 0 else 0
-            div_flow['shares'] = total_shares
-            div_flow['price_per_share'] = div_per_share
-            etf_cash_flows.append(div_flow)
-            
-            # Add immediate reinvestment
-            div_price = self.price_service.get_cached_price(etf_ticker, div_flow['date'])
-            if not div_price:
-                div_price = self.price_service.get_current_price(etf_ticker)
-            
-            if div_price and div_flow['amount'] > 0:
-                reinvest_shares = div_flow['amount'] / div_price
-                total_shares += reinvest_shares
-                
-                etf_cash_flows.append({
-                    'date': div_flow['date'],
-                    'flow_type': 'PURCHASE',
-                    'amount': -div_flow['amount'],  # Negative for purchase
-                    'description': f'{reinvest_shares:.4f} shares @ ${div_price:.2f} (dividend reinvestment)',
-                    'shares': reinvest_shares,
-                    'price_per_share': div_price,
-                    'running_balance': 0.0
-                })
+        dividend_flows = self._get_etf_dividend_flows(etf_ticker, deposits, etf_cash_flows)
+        etf_cash_flows.extend(dividend_flows)
         
         # Sort by date
         etf_cash_flows.sort(key=lambda x: x['date'])
@@ -103,29 +77,20 @@ class ETFComparisonService:
         # Sum up all share purchases (initial + reinvested)
         for flow in etf_cash_flows:
             if flow['flow_type'] == 'PURCHASE':
-                # Extract shares from description
-                desc = flow['description']
-                if 'shares @' in desc:
-                    shares_str = desc.split(' shares @')[0]
-                    try:
-                        shares = float(shares_str)
-                        total_shares += shares
-                    except ValueError:
-                        pass
+                total_shares += flow['shares']
         
         # Get current value
         current_price = self.price_service.get_current_price(etf_ticker)
         current_value = total_shares * current_price if current_price else total_invested
         
         # Get dividend total for display (even though reinvested)
-        dividend_flows = self._get_etf_dividend_flows(etf_ticker, deposits, total_shares)
-        dividends_received = sum(df['amount'] for df in dividend_flows if df['amount'] > 0)
+        dividends_received = sum(flow['amount'] for flow in etf_cash_flows 
+                               if flow['flow_type'] == 'DIVIDEND' and flow['amount'] > 0)
         
         # Investment gain = current value - total invested - dividends received
         investment_gain = current_value - total_invested - dividends_received
         
         # Calculate proper IRR using ETF cash flows
-        etf_cash_flows = self.get_etf_cash_flows(portfolio_id, etf_ticker)
         irr_value = self.irr_service.calculate_irr(etf_cash_flows, current_value)
         
         return {
@@ -137,7 +102,7 @@ class ETFComparisonService:
             'irr': irr_value
         }
     
-    def _get_etf_dividend_flows(self, etf_ticker, deposits, total_shares):
+    def _get_etf_dividend_flows(self, etf_ticker, deposits, existing_cash_flows):
         """Get ETF dividend cash flows using yfinance API"""
         if not deposits:
             return []
@@ -159,20 +124,43 @@ class ETFComparisonService:
                                 if div_date.date() >= start_date]
             relevant_dividends.sort(key=lambda x: x[0])
             
-            # Calculate shares held at each dividend date
+            # Process each dividend date
             for div_date, div_amount in relevant_dividends:
-                shares_on_date = self._calculate_shares_on_date(etf_ticker, deposits, div_date, dividend_flows)
+                # Calculate shares held at this dividend date
+                shares_on_date = self._calculate_shares_on_date(existing_cash_flows, div_date)
                 
                 if shares_on_date > 0:
                     total_dividend = div_amount * shares_on_date
                     if total_dividend > 0.01:  # Only include meaningful dividends
-                        dividend_flows.append({
+                        dividend_flow = {
                             'date': div_date,
                             'flow_type': 'DIVIDEND',
                             'amount': total_dividend,
                             'description': f'${div_amount:.2f} per share',
+                            'shares': shares_on_date,  # Use actual shares on dividend date
+                            'price_per_share': div_amount,
                             'running_balance': 0.0
-                        })
+                        }
+                        dividend_flows.append(dividend_flow)
+                        
+                        # Add dividend reinvestment
+                        div_price = self.price_service.get_cached_price(etf_ticker, div_date)
+                        if not div_price:
+                            div_price = self.price_service.get_current_price(etf_ticker)
+                        
+                        if div_price and total_dividend > 0:
+                            reinvest_shares = total_dividend / div_price
+                            
+                            reinvest_flow = {
+                                'date': div_date,
+                                'flow_type': 'PURCHASE',
+                                'amount': -total_dividend,  # Negative for purchase
+                                'description': f'{reinvest_shares:.4f} shares @ ${div_price:.2f} (dividend reinvestment)',
+                                'shares': reinvest_shares,
+                                'price_per_share': div_price,
+                                'running_balance': 0.0
+                            }
+                            dividend_flows.append(reinvest_flow)
             
             return dividend_flows
             
@@ -180,42 +168,14 @@ class ETFComparisonService:
             print(f"Failed to get dividend data for {etf_ticker}: {e}")
             return []
     
-    def _calculate_shares_on_date(self, etf_ticker, deposits, target_date, previous_dividends):
-        """Calculate shares held on a specific date"""
+    def _calculate_shares_on_date(self, cash_flows, target_date):
+        """Calculate shares held on a specific date based on existing cash flows"""
         total_shares = 0.0
         
-        # Use current price as fallback to avoid multiple DB calls in production
-        fallback_price = self.price_service.get_current_price(etf_ticker)
-        
-        # Add shares from deposits up to target date
-        for deposit in deposits:
-            if deposit['date'] <= target_date:
-                # Try cached price first, fallback to current price to avoid timeouts
-                try:
-                    etf_price = self.price_service.get_cached_price(etf_ticker, deposit['date'])
-                    if not etf_price:
-                        etf_price = fallback_price
-                except Exception:
-                    etf_price = fallback_price
-                
-                if etf_price:
-                    shares_purchased = deposit['amount'] / etf_price
-                    total_shares += shares_purchased
-        
-        # Add shares from dividend reinvestments up to target date
-        for div_flow in previous_dividends:
-            if div_flow['date'] < target_date and div_flow['flow_type'] == 'DIVIDEND':
-                # Use fallback price for dividend reinvestment to avoid timeouts
-                try:
-                    div_price = self.price_service.get_cached_price(etf_ticker, div_flow['date'])
-                    if not div_price:
-                        div_price = fallback_price
-                except Exception:
-                    div_price = fallback_price
-                
-                if div_price and div_flow['amount'] > 0:
-                    reinvested_shares = div_flow['amount'] / div_price
-                    total_shares += reinvested_shares
+        # Add up all purchases and reinvestments up to target date
+        for flow in cash_flows:
+            if flow['date'] <= target_date:
+                if flow['flow_type'] == 'PURCHASE':
+                    total_shares += flow['shares']
         
         return total_shares
-    
