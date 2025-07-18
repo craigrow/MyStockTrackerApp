@@ -51,6 +51,17 @@ class ETFComparisonService:
         # Sort by date
         etf_cash_flows.sort(key=lambda x: x['date'])
         
+        # Define flow type priority for same-day sorting (dividends, deposits, purchases)
+        flow_type_priority = {
+            'DIVIDEND': 1,
+            'DEPOSIT': 2,
+            'PURCHASE': 3,
+            'SALE': 4
+        }
+        
+        # Sort by date first, then by flow type priority for same-day transactions
+        etf_cash_flows.sort(key=lambda x: (x['date'], flow_type_priority.get(x['flow_type'], 99)))
+        
         return etf_cash_flows
     
     def get_etf_summary(self, portfolio_id, etf_ticker):

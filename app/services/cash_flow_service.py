@@ -120,6 +120,17 @@ class CashFlowService:
                     'running_balance': running_balance
                 })
         
+        # Define flow type priority for same-day sorting (dividends, deposits, purchases)
+        flow_type_priority = {
+            'DIVIDEND': 1,
+            'DEPOSIT': 2,
+            'PURCHASE': 3,
+            'SALE': 4
+        }
+        
+        # Sort cash flows by date and then by flow type priority
+        cash_flows.sort(key=lambda cf: (cf['date'], flow_type_priority.get(cf['flow_type'], 99)))
+        
         return cash_flows
     
     def save_cash_flows(self, portfolio_id, cash_flows):
@@ -144,6 +155,20 @@ class CashFlowService:
     
     def get_cash_flows(self, portfolio_id):
         """Get saved cash flows for a portfolio"""
-        return CashFlow.query.filter_by(
+        # Define flow type priority for same-day sorting (dividends, deposits, purchases)
+        flow_type_priority = {
+            'DIVIDEND': 1,
+            'DEPOSIT': 2,
+            'PURCHASE': 3,
+            'SALE': 4
+        }
+        
+        # Get all cash flows
+        cash_flows = CashFlow.query.filter_by(
             portfolio_id=portfolio_id
         ).order_by(CashFlow.date.asc()).all()
+        
+        # Sort cash flows by date and then by flow type priority
+        cash_flows.sort(key=lambda cf: (cf.date, flow_type_priority.get(cf.flow_type, 99)))
+        
+        return cash_flows
