@@ -18,6 +18,7 @@ class TestDashboardRefreshPrices:
             if not test_portfolio:
                 test_portfolio = Portfolio(
                     id="test-portfolio-id",
+                    user_id="test-user",  # Add user_id to satisfy NOT NULL constraint
                     name="Test Portfolio",
                     description="Test portfolio for dashboard tests"
                 )
@@ -56,6 +57,7 @@ class TestDashboardRefreshPrices:
             if not test_portfolio:
                 test_portfolio = Portfolio(
                     id="test-portfolio-id",
+                    user_id="test-user",  # Add user_id to satisfy NOT NULL constraint
                     name="Test Portfolio",
                     description="Test portfolio for dashboard tests"
                 )

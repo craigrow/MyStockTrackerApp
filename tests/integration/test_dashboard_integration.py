@@ -13,7 +13,7 @@ class TestDashboardIntegration:
         with app.app_context():
             # Create a test portfolio with transactions
             from app.models.portfolio import Portfolio
-            from app.models.transaction import StockTransaction
+            from app.models.portfolio import StockTransaction
             from datetime import date, timedelta
             from app import db
             
@@ -22,6 +22,7 @@ class TestDashboardIntegration:
             if not test_portfolio:
                 test_portfolio = Portfolio(
                     id="integration-test-portfolio",
+                    user_id="test-user",  # Add user_id to satisfy NOT NULL constraint
                     name="Integration Test Portfolio",
                     description="Integration test portfolio"
                 )

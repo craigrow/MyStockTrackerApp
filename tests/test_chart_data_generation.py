@@ -2,7 +2,7 @@
 import pytest
 from datetime import date, timedelta
 from app.views.main import generate_chart_data
-from app.models.transaction import StockTransaction
+from app.models.portfolio import StockTransaction
 
 class TestChartDataGeneration:
     """Test chart data generation functionality."""
