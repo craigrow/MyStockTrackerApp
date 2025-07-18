@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
 
 # Import the fixed service
-from app.services.etf_comparison_service_fix import ETFComparisonService
+from app.services.etf_comparison_service import ETFComparisonService
 
 def test_etf_dividend_shares_calculation():
     """Test that dividend calculations use correct share quantities at each date"""
