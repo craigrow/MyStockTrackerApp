@@ -332,15 +332,23 @@
 {% endblock %}
 
 {% block scripts %}
-{% if current_portfolio and chart_data %}
+{% if current_portfolio %}
 <script>
-// Store original chart data
+// Store original chart data with fallbacks for missing data
 const originalChartData = {
-    dates: {{ chart_data.dates | tojson }},
-    portfolio_values: {{ chart_data.portfolio_values | tojson }},
-    voo_values: {{ chart_data.voo_values | tojson }},
-    qqq_values: {{ chart_data.qqq_values | tojson }}
+    dates: {{ chart_data.dates | tojson if chart_data and chart_data.dates else '[]' }},
+    portfolio_values: {{ chart_data.portfolio_values | tojson if chart_data and chart_data.portfolio_values else '[]' }},
+    voo_values: {{ chart_data.voo_values | tojson if chart_data and chart_data.voo_values else '[]' }},
+    qqq_values: {{ chart_data.qqq_values | tojson if chart_data and chart_data.qqq_values else '[]' }}
 };
+
+// Log chart data status
+if (originalChartData.dates.length === 0) {
+    console.warn('Chart data is empty. This may indicate an issue with data generation.');
+    logActivity('Warning: Chart data is empty. Please check server logs for details.');
+} else {
+    console.log(`Chart data loaded with ${originalChartData.dates.length} data points`);
+}
 
 const ctx = document.getElementById('portfolioChart').getContext('2d');
 const chart = new Chart(ctx, {

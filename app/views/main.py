@@ -222,18 +222,22 @@ def dashboard():
                     daily_changes = calculate_daily_changes(current_portfolio.id, portfolio_service, price_service)
                     portfolio_stats.update(daily_changes)
                 
-                if not chart_data:
-                    print("[CACHE] Calculating fresh chart data")
+                if not chart_data or len(chart_data.get('dates', [])) == 0:
+                    print("[CACHE] Calculating fresh chart data (no cache or empty data)")
                     try:
                         chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
-                        if is_market_closed and chart_data:
+                        # Only cache if we actually have data
+                        if is_market_closed and chart_data and len(chart_data.get('dates', [])) > 0:
                             cache_chart_data(current_portfolio.id, market_date, chart_data)
+                            print(f"[CACHE] Successfully cached {len(chart_data.get('dates', []))} data points")
                     except Exception as e:
                         print(f"[CACHE] Error generating chart data: {e}")
+                        import traceback
+                        traceback.print_exc()
                         db.session.rollback()
                         chart_data = {'dates': [], 'portfolio_values': [], 'voo_values': [], 'qqq_values': []}
                 else:
-                    print("[CACHE] Using cached chart data")
+                    print(f"[CACHE] Using cached chart data with {len(chart_data.get('dates', []))} points")
             except Exception as e:
                 print(f"[CACHE] Error in caching logic: {e}")
                 import traceback
@@ -457,6 +461,7 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
     
     if not transactions:
+        print(f"[CHART] No transactions found for portfolio {portfolio_id}")
         return {
             'dates': [],
             'portfolio_values': [],
@@ -466,15 +471,10 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     
     # Get unique tickers and check if we have too many (performance optimization)
     tickers = list(set(t.ticker for t in transactions))
-    print(f"[CHART] Portfolio has {len(tickers)} unique tickers")
-    if len(tickers) > 20:  # Original threshold of 20 tickers
-        print(f"[CHART] Skipping chart generation for portfolio with {len(tickers)} tickers (performance optimization)")
-        return {
-            'dates': [],
-            'portfolio_values': [],
-            'voo_values': [],
-            'qqq_values': []
-        }
+    print(f"[CHART] Portfolio {portfolio_id} has {len(tickers)} unique tickers")
+    
+    # Removed ticker threshold check to ensure chart always generates
+    # Even with many tickers, it's better to show a chart than nothing
     
     # Get date range from first transaction to today
     end_date = date.today()
@@ -505,47 +505,86 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     cumulative_voo_shares = 0
     cumulative_qqq_shares = 0
     
-    for current_date in date_range:
-        date_str = current_date.strftime('%Y-%m-%d')
-        dates.append(date_str)
+    try:
+        for current_date in date_range:
+            date_str = current_date.strftime('%Y-%m-%d')
+            dates.append(date_str)
+            
+            # Add any new transactions on this date
+            for transaction in transactions:
+                try:
+                    if transaction.date == current_date.date():
+                        if transaction.ticker not in cumulative_holdings:
+                            cumulative_holdings[transaction.ticker] = 0
+                        
+                        if transaction.transaction_type == 'BUY':
+                            cumulative_holdings[transaction.ticker] += transaction.shares
+                            # Calculate equivalent ETF shares
+                            voo_price = get_price_from_dataframe(price_histories.get('VOO'), date_str)
+                            if voo_price:
+                                cumulative_voo_shares += transaction.total_value / voo_price
+                            
+                            qqq_price = get_price_from_dataframe(price_histories.get('QQQ'), date_str)
+                            if qqq_price:
+                                cumulative_qqq_shares += transaction.total_value / qqq_price
+                        elif transaction.transaction_type == 'SELL':
+                            cumulative_holdings[transaction.ticker] -= transaction.shares
+                except Exception as e:
+                    print(f"[CHART] Error processing transaction {transaction.id}: {e}")
+                    continue
+            
+            # Calculate portfolio value
+            portfolio_value = 0
+            for ticker, shares in cumulative_holdings.items():
+                if shares > 0:
+                    try:
+                        price = get_price_from_dataframe(price_histories.get(ticker), date_str)
+                        if price:
+                            portfolio_value += shares * price
+                    except Exception as e:
+                        print(f"[CHART] Error getting price for {ticker}: {e}")
+                        continue
+            
+            # Calculate ETF values
+            try:
+                voo_price = get_price_from_dataframe(price_histories.get('VOO'), date_str)
+                voo_value = cumulative_voo_shares * voo_price if voo_price else 0
+            except Exception as e:
+                print(f"[CHART] Error calculating VOO value: {e}")
+                voo_value = 0
+            
+            try:
+                qqq_price = get_price_from_dataframe(price_histories.get('QQQ'), date_str)
+                qqq_value = cumulative_qqq_shares * qqq_price if qqq_price else 0
+            except Exception as e:
+                print(f"[CHART] Error calculating QQQ value: {e}")
+                qqq_value = 0
+            
+            portfolio_values.append(portfolio_value)
+            voo_values.append(voo_value)
+            qqq_values.append(qqq_value)
+    except Exception as e:
+        print(f"[CHART] Error in chart data generation loop: {e}")
+        import traceback
+        traceback.print_exc()
         
-        # Add any new transactions on this date
-        for transaction in transactions:
-            if transaction.date == current_date.date():
-                if transaction.ticker not in cumulative_holdings:
-                    cumulative_holdings[transaction.ticker] = 0
-                
-                if transaction.transaction_type == 'BUY':
-                    cumulative_holdings[transaction.ticker] += transaction.shares
-                    # Calculate equivalent ETF shares
-                    voo_price = get_price_from_dataframe(price_histories.get('VOO'), date_str)
-                    if voo_price:
-                        cumulative_voo_shares += transaction.total_value / voo_price
-                    
-                    qqq_price = get_price_from_dataframe(price_histories.get('QQQ'), date_str)
-                    if qqq_price:
-                        cumulative_qqq_shares += transaction.total_value / qqq_price
-                elif transaction.transaction_type == 'SELL':
-                    cumulative_holdings[transaction.ticker] -= transaction.shares
-        
-        # Calculate portfolio value
-        portfolio_value = 0
-        for ticker, shares in cumulative_holdings.items():
-            if shares > 0:
-                price = get_price_from_dataframe(price_histories.get(ticker), date_str)
-                if price:
-                    portfolio_value += shares * price
-        
-        # Calculate ETF values
-        voo_price = get_price_from_dataframe(price_histories.get('VOO'), date_str)
-        voo_value = cumulative_voo_shares * voo_price if voo_price else 0
-        
-        qqq_price = get_price_from_dataframe(price_histories.get('QQQ'), date_str)
-        qqq_value = cumulative_qqq_shares * qqq_price if qqq_price else 0
-        
-        portfolio_values.append(portfolio_value)
-        voo_values.append(voo_value)
-        qqq_values.append(qqq_value)
+        # If we have at least some data points, return what we have
+        if len(dates) > 0:
+            print(f"[CHART] Returning partial chart data with {len(dates)} points")
+            # Ensure all arrays are the same length
+            min_length = min(len(dates), len(portfolio_values), len(voo_values), len(qqq_values))
+            dates = dates[:min_length]
+            portfolio_values = portfolio_values[:min_length]
+            voo_values = voo_values[:min_length]
+            qqq_values = qqq_values[:min_length]
+        else:
+            # If we have no data points, create a minimal valid dataset
+            print("[CHART] Creating minimal valid dataset")
+            today = date.today()
+            dates = [today.strftime('%Y-%m-%d')]
+            portfolio_values = [0]
+            voo_values = [0]
+            qqq_values = [0]
     
     return {
         'dates': dates,
