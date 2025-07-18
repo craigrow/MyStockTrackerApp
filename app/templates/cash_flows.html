@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Flows - MyStockTracker{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Cash Flows</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1>Cash Flows Analysis</h1>
+                <p class="text-muted mb-0">Track money in/out and calculate Internal Rate of Return (IRR)</p>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    {{ current_portfolio.name if current_portfolio else 'Select Portfolio' }}
+                </button>
+                <ul class="dropdown-menu">
+                    {% for portfolio in portfolios %}
+                        <li><a class="dropdown-item" href="{{ url_for('cash_flows.cash_flows_page', portfolio_id=portfolio.id) }}">{{ portfolio.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_portfolio %}
+<!-- Portfolio Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title">Total Invested</h6>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.total_invested or 0) }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <h6 class="card-title">Portfolio Value</h6>
+                <h4>${{ "{:,.2f}".format(portfolio_summary.portfolio_value or 0) }}</h4>
+                <small class="text-light">
+                    Investment Gain: ${{ "{:,.2f}".format(portfolio_summary.investment_gain or 0) }}<br>
+                    Cash: ${{ "{:,.2f}".format(portfolio_summary.cash_balance or 0) }}<br>
+                    Dividends: ${{ "{:,.2f}".format(portfolio_summary.dividends_received or 0) }}
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card bg-warning text-dark h-100">
+            <div class="card-body">
+                <h6 class="card-title">Portfolio IRR (Annual)</h6>
+                <h4>{{ "{:.2f}".format((portfolio_summary.irr or 0) * 100) }}%</h4>
+                <small class="text-dark">
+                    VOO IRR: {{ "{:.2f}".format((voo_irr or 0) * 100) }}%<br>
+                    QQQ IRR: {{ "{:.2f}".format((qqq_irr or 0) * 100) }}%
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cash Flows Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Cash Flow History</h5>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    {% if current_portfolio %}
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="comparison" id="portfolio-radio" value="portfolio" 
+                               {% if comparison == 'portfolio' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary btn-sm" for="portfolio-radio">Portfolio</label>
+                        
+                        <input type="radio" class="btn-check" name="comparison" id="voo-radio" value="VOO" 
+                               {% if comparison == 'VOO' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary btn-sm" for="voo-radio">VOO</label>
+                        
+                        <input type="radio" class="btn-check" name="comparison" id="qqq-radio" value="QQQ" 
+                               {% if comparison == 'QQQ' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary btn-sm" for="qqq-radio">QQQ</label>
+                    </div>
+                    
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">Filter:</small>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="filter-deposit" value="DEPOSIT" checked>
+                            <label class="form-check-label" for="filter-deposit"><span class="badge bg-primary">DEPOSIT</span></label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="filter-dividend" value="DIVIDEND" checked>
+                            <label class="form-check-label" for="filter-dividend"><span class="badge bg-success">DIVIDEND</span></label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="filter-purchase" value="PURCHASE" checked>
+                            <label class="form-check-label" for="filter-purchase"><span class="badge bg-danger">PURCHASE</span></label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if current_portfolio and cash_flows %}
+                    <a href="#" id="export-csv-btn" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-download me-1"></i>Export CSV
+                    </a>
+                    {% endif %}
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Showing {{ comparison|upper if comparison != 'portfolio' else 'portfolio' }} cash flows
+                    </small>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if cash_flows %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th class="d-none d-md-table-cell">Description</th>
+                                    <th class="text-end d-none d-lg-table-cell">Shares</th>
+                                    <th class="text-end d-none d-lg-table-cell">$/Share</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end d-none d-sm-table-cell">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cash-flows-tbody">
+                                {% for flow in cash_flows %}
+                                <tr data-flow-type="{{ flow.flow_type }}">
+                                    <td>
+                                        <span class="d-block">{{ flow.date.strftime('%m/%d/%Y') }}</span>
+                                        <small class="text-muted d-md-none">{{ flow.description }}</small>
+                                    </td>
+                                    <td>
+                                        {% set badge_color = 'primary' if flow.flow_type == 'DEPOSIT' else ('success' if flow.flow_type == 'DIVIDEND' else ('info' if flow.flow_type == 'SALE' else 'danger')) %}
+                                        <span class="badge bg-{{ badge_color }}">
+                                            {{ flow.flow_type }}
+                                        </span>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">{{ flow.description }}</td>
+                                    <td class="text-end d-none d-lg-table-cell">
+                                        {% if (flow.shares is defined and flow.shares) or (flow.get and flow.get('shares')) %}
+                                            {{ "{:,.4f}".format(flow.shares if flow.shares is defined else flow.get('shares')) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end d-none d-lg-table-cell">
+                                        {% if (flow.price_per_share is defined and flow.price_per_share) or (flow.get and flow.get('price_per_share')) %}
+                                            ${{ "{:,.2f}".format(flow.price_per_share if flow.price_per_share is defined else flow.get('price_per_share')) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end {{ 'text-success' if flow.amount >= 0 else 'text-danger' }}">
+                                        <strong>${{ "{:,.2f}".format(flow.amount) }}</strong>
+                                    </td>
+                                    <td class="text-end d-none d-sm-table-cell">
+                                        ${{ "{:,.2f}".format(flow.running_balance) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No cash flows found. <a href="{{ url_for('portfolio.add_transaction') }}">Add your first transaction</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% else %}
+<div class="row">
+    <div class="col-12 text-center">
+        <div class="card">
+            <div class="card-body py-5">
+                <i class="fas fa-chart-line fa-4x text-muted mb-4"></i>
+                <h3>Welcome to Cash Flows Analysis</h3>
+                <p class="text-muted mb-4">Create a portfolio to analyze your investment cash flows and IRR.</p>
+                <a href="{{ url_for('portfolio.create') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-plus me-2"></i>Create Portfolio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Handle comparison toggle and filtering
+document.addEventListener('DOMContentLoaded', function() {
+    const comparisonInputs = document.querySelectorAll('input[name="comparison"]');
+    const filterInputs = document.querySelectorAll('input[type="checkbox"][id^="filter-"]');
+    const portfolioId = '{{ current_portfolio.id if current_portfolio else "" }}';
+    
+    // Comparison toggle
+    comparisonInputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+            if (portfolioId && this.checked) {
+                window.location.href = `/cash-flows?portfolio_id=${portfolioId}&comparison=${this.value}`;
+            }
+        });
+    });
+    
+    // Flow type filtering
+    function filterRows() {
+        const checkedTypes = Array.from(filterInputs)
+            .filter(input => input.checked)
+            .map(input => input.value);
+        
+        const rows = document.querySelectorAll('#cash-flows-tbody tr');
+        rows.forEach(function(row) {
+            const flowType = row.getAttribute('data-flow-type');
+            if (checkedTypes.includes(flowType)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    filterInputs.forEach(function(input) {
+        input.addEventListener('change', filterRows);
+    });
+    
+    // Update export link with current filters
+    function updateExportLink() {
+        const exportBtn = document.getElementById('export-csv-btn');
+        if (exportBtn && portfolioId) {
+            const checkedTypes = Array.from(filterInputs)
+                .filter(input => input.checked)
+                .map(input => input.value);
+            const comparison = document.querySelector('input[name="comparison"]:checked')?.value || 'portfolio';
+            
+            let url = `/cash-flows/export?portfolio_id=${portfolioId}&comparison=${comparison}`;
+            if (checkedTypes.length > 0) {
+                checkedTypes.forEach(type => {
+                    url += `&types=${type}`;
+                });
+            }
+            exportBtn.href = url;
+        }
+    }
+    
+    // Update export link on filter change
+    filterInputs.forEach(function(input) {
+        input.addEventListener('change', updateExportLink);
+    });
+    comparisonInputs.forEach(function(input) {
+        input.addEventListener('change', updateExportLink);
+    });
+    
+    // Initial export link setup
+    updateExportLink();
+});
+</script>
+{% endblock %}

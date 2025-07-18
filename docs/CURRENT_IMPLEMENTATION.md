@@ -66,7 +66,7 @@ MyStockTrackerApp/
 #### Portfolio
 - **Primary Key**: UUID string
 - **Attributes**: name, description, user_id, creation_date, last_updated
-- **Relationships**: One-to-many with transactions, dividends, cash_balance
+- **Relationships**: One-to-many with transactions, dividends, cash_balance, cash_flows, irr_calculations
 
 #### StockTransaction
 - **Primary Key**: UUID string
@@ -81,6 +81,18 @@ MyStockTrackerApp/
 #### CashBalance
 - **Primary Key**: portfolio_id (one-to-one with portfolio)
 - **Attributes**: balance, last_updated
+
+#### CashFlow (New - DevR)
+- **Primary Key**: UUID string
+- **Attributes**: portfolio_id, date, flow_type (DEPOSIT/PURCHASE/SALE/DIVIDEND), amount, description, running_balance
+- **Relationships**: Many-to-one with portfolio
+- **Purpose**: Track all cash movements for IRR calculations
+
+#### IRRCalculation (New - DevR)
+- **Primary Key**: UUID string
+- **Attributes**: portfolio_id, irr_value, total_invested, current_value, calculation_date
+- **Relationships**: Many-to-one with portfolio
+- **Purpose**: Cache IRR calculations for performance
 
 ### Supporting Models
 
@@ -109,6 +121,27 @@ MyStockTrackerApp/
   - `get_current_holdings()` - Holdings calculation
   - `calculate_portfolio_value()` - Portfolio valuation
   - `get_portfolio_transactions()` - Transaction retrieval
+
+### CashFlowService (New - DevR)
+- **Purpose**: Cash flow generation and analysis
+- **Key Methods**:
+  - `generate_cash_flows()` - Create cash flows from transactions
+  - `save_cash_flows()` - Persist cash flows to database
+  - `get_cash_flows()` - Retrieve saved cash flows
+
+### ETFComparisonService (New - DevR)
+- **Purpose**: ETF performance comparison with real data
+- **Key Methods**:
+  - `get_etf_cash_flows()` - Generate ETF purchase/dividend flows
+  - `get_etf_summary()` - Calculate ETF performance metrics
+  - `_get_etf_dividend_flows()` - Fetch real dividend data from yfinance
+
+### IRRCalculationService (New - DevR)
+- **Purpose**: Internal Rate of Return calculations
+- **Key Methods**:
+  - `calculate_irr()` - Scipy-based IRR calculation
+  - `save_irr_calculation()` - Cache IRR results
+  - `get_portfolio_summary()` - Complete portfolio cash flow summary
 
 ### PriceService
 - **Purpose**: Stock price data management
@@ -143,6 +176,8 @@ MyStockTrackerApp/
 - `POST /portfolio/add-transaction` - Add transaction
 - `POST /portfolio/import-csv` - CSV import
 - `GET /portfolio/export-csv` - CSV export
+- `GET /cash-flows` - Cash flows analysis page (New - DevR)
+- `GET /cash-flows/export` - Export filtered cash flows to CSV (New - DevR)
 
 ### API Endpoints
 - `GET /api/refresh-holdings/{portfolio_id}` - Refresh holdings data
@@ -215,7 +250,7 @@ MyStockTrackerApp/
 
 ## 🧪 Testing Strategy
 
-### Test Coverage (235+ Tests)
+### Test Coverage (275+ Tests)
 - **Unit Tests**: Models, services, utilities
 - **Integration Tests**: End-to-end workflows, API endpoints
 - **Performance Tests**: Caching, optimization, load scenarios
@@ -229,8 +264,8 @@ MyStockTrackerApp/
 - **Edge Cases**: API failures, malformed data, concurrent access
 
 ### Quality Metrics
-- **Test Pass Rate**: 100% (235/235 tests passing)
-- **Coverage**: Comprehensive coverage of all features
+- **Test Pass Rate**: 100% (275/275 tests passing)
+- **Coverage**: Comprehensive coverage of all features including cash flows
 - **Performance**: Dashboard loads in 2-3 seconds (90% improvement)
 - **Reliability**: Zero production failures since optimization
 
@@ -290,7 +325,19 @@ MyStockTrackerApp/
 
 ## 📈 Recent Enhancements
 
-### Chart Date Filtering (Latest)
+### Cash Flows Tracking Feature (Latest - DevR)
+- **Cash Flow Analysis**: Complete cash flow tracking with IRR calculations
+- **ETF Comparison**: Portfolio vs VOO/QQQ performance with real prices and dividends
+- **Dividend Reinvestment**: Automatic dividend reinvestment modeling for ETF comparisons
+- **Flow Type Filtering**: Filter by Deposits, Dividends, Purchases with real-time UI updates
+- **Detailed Columns**: Shares and $/Share columns for all transactions
+- **CSV Export**: Filtered cash flow exports with comparison data
+- **Real Market Data**: Actual ETF prices and dividend history from yfinance API
+- **Proper IRR Calculation**: Uses scipy for accurate Internal Rate of Return calculations
+- **Enhanced Formatting**: Consistent two decimal place formatting for all monetary values
+- **ETF IRR Display**: Direct comparison of Portfolio IRR with VOO and QQQ IRR values
+
+### Chart Date Filtering
 - **Time Period Presets**: YTD, 12M, 5Y, All radio buttons
 - **Custom Date Range**: Date picker for specific start dates
 - **Persistent Preferences**: User selections saved in localStorage
@@ -332,7 +379,7 @@ MyStockTrackerApp/
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: January 2025  
+**Document Version**: 2.1  
+**Last Updated**: July 2025  
 **Maintainer**: Development Team  
-**Status**: Current Implementation as of devQ sync
+**Status**: Current Implementation as of devR (includes Cash Flows feature with enhanced formatting and ETF IRR display)

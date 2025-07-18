@@ -65,6 +65,12 @@ class PortfolioService:
         
         return total_value
     
+    def get_portfolio_current_value(self, portfolio_id):
+        """Get current portfolio value including cash balance"""
+        portfolio_value = self.calculate_portfolio_value(portfolio_id)
+        cash_balance = self.get_cash_balance(portfolio_id)
+        return portfolio_value + cash_balance
+    
     def get_current_holdings(self, portfolio_id):
         transactions = self.get_portfolio_transactions(portfolio_id)
         holdings = defaultdict(float)
@@ -121,6 +127,27 @@ class PortfolioService:
     
     def get_all_portfolios(self):
         return Portfolio.query.all()
+    
+    def get_portfolio_current_value(self, portfolio_id):
+        """Get current market value of portfolio"""
+        from app.services.price_service import PriceService
+        price_service = PriceService()
+        
+        holdings = self.get_current_holdings(portfolio_id)
+        total_value = 0.0
+        
+        for ticker, shares in holdings.items():
+            try:
+                current_price = price_service.get_current_price(ticker, use_stale=True)
+                if current_price:
+                    total_value += shares * current_price
+            except Exception:
+                pass
+        
+        # Add cash balance
+        total_value += self.get_cash_balance(portfolio_id)
+        
+        return total_value
     
     def delete_transaction(self, transaction_id, portfolio_id):
         """Delete a transaction if it belongs to the specified portfolio"""
