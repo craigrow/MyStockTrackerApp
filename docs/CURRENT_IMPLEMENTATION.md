@@ -334,6 +334,8 @@ MyStockTrackerApp/
 - **CSV Export**: Filtered cash flow exports with comparison data
 - **Real Market Data**: Actual ETF prices and dividend history from yfinance API
 - **Proper IRR Calculation**: Uses scipy for accurate Internal Rate of Return calculations
+- **Enhanced Formatting**: Consistent two decimal place formatting for all monetary values
+- **ETF IRR Display**: Direct comparison of Portfolio IRR with VOO and QQQ IRR values
 
 ### Chart Date Filtering
 - **Time Period Presets**: YTD, 12M, 5Y, All radio buttons
@@ -377,7 +379,7 @@ MyStockTrackerApp/
 
 ---
 
-**Document Version**: 2.0  
+**Document Version**: 2.1  
 **Last Updated**: July 2025  
 **Maintainer**: Development Team  
-**Status**: Current Implementation as of devR (includes Cash Flows feature)
+**Status**: Current Implementation as of devR (includes Cash Flows feature with enhanced formatting and ETF IRR display)
