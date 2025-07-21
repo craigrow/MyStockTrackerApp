@@ -105,14 +105,26 @@ def refresh_all_prices(portfolio_id):
         holdings = portfolio_service.get_current_holdings(portfolio_id)
         all_tickers = list(holdings.keys()) + ['VOO', 'QQQ']
         
-        # Force refresh all prices
-        refreshed_count = 0
-        for ticker in all_tickers:
-            try:
-                price_service.get_current_price(ticker, use_stale=False)
-                refreshed_count += 1
-            except Exception as e:
-                print(f"Failed to refresh {ticker}: {e}")
+        # Force refresh all prices using batch API
+        try:
+            # Use batch API for efficiency
+            prices = price_service.batch_fetch_current_prices(all_tickers)
+            refreshed_count = len([t for t in prices if prices[t] is not None])
+            
+            # Cache the prices
+            for ticker, price in prices.items():
+                if price is not None:
+                    price_service.cache_price_data(ticker, date.today(), price, True)
+        except Exception as e:
+            print(f"Batch refresh failed, falling back to individual: {e}")
+            # Fallback to individual refreshes
+            refreshed_count = 0
+            for ticker in all_tickers:
+                try:
+                    price_service.get_current_price(ticker, use_stale=False)
+                    refreshed_count += 1
+                except Exception as e:
+                    print(f"Failed to refresh {ticker}: {e}")
         
         # Get updated holdings data
         updated_holdings = get_holdings_with_performance(portfolio_id, portfolio_service, price_service, use_stale=False)
@@ -127,6 +139,29 @@ def refresh_all_prices(portfolio_id):
     except Exception as e:
         return jsonify({
             'success': False,
+            'error': str(e)
+        }), 500
+
+@main_blueprint.route('/api/chart-data/<portfolio_id>')
+def get_chart_data(portfolio_id):
+    """Get chart data for portfolio performance visualization"""
+    try:
+        portfolio_service = PortfolioService()
+        price_service = PriceService()
+        
+        # Generate chart data
+        chart_data = generate_chart_data(portfolio_id, portfolio_service, price_service)
+        
+        return jsonify(chart_data)
+    except Exception as e:
+        print(f"Error generating chart data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'dates': [],
+            'portfolio_values': [],
+            'voo_values': [],
+            'qqq_values': [],
             'error': str(e)
         }), 500
 

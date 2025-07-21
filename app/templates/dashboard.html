@@ -334,24 +334,82 @@
 {% block scripts %}
 {% if current_portfolio %}
 <script>
-// Store original chart data with fallbacks for missing data
-const originalChartData = {
-    dates: {{ chart_data.dates | tojson if chart_data and chart_data.dates else '[]' }},
-    portfolio_values: {{ chart_data.portfolio_values | tojson if chart_data and chart_data.portfolio_values else '[]' }},
-    voo_values: {{ chart_data.voo_values | tojson if chart_data and chart_data.voo_values else '[]' }},
-    qqq_values: {{ chart_data.qqq_values | tojson if chart_data and chart_data.qqq_values else '[]' }}
+// Initialize chart data placeholders
+let originalChartData = {
+    dates: [],
+    portfolio_values: [],
+    voo_values: [],
+    qqq_values: []
 };
 
-// Log chart data status
-if (originalChartData.dates.length === 0) {
-    console.warn('Chart data is empty. This may indicate an issue with data generation.');
-    logActivity('Warning: Chart data is empty. Please check server logs for details.');
-} else {
-    console.log(`Chart data loaded with ${originalChartData.dates.length} data points`);
+// Function to load chart data asynchronously
+function loadChartData(portfolioId) {
+    logActivity('Loading chart data asynchronously...');
+    
+    // Show loading indicator in chart
+    const chartCanvas = document.getElementById('portfolioChart');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'chartLoading';
+    loadingDiv.style.position = 'absolute';
+    loadingDiv.style.top = '50%';
+    loadingDiv.style.left = '50%';
+    loadingDiv.style.transform = 'translate(-50%, -50%)';
+    loadingDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><div class="mt-2">Loading chart data...</div>';
+    chartCanvas.parentNode.style.position = 'relative';
+    chartCanvas.parentNode.appendChild(loadingDiv);
+    
+    // Fetch chart data from API
+    fetch(`/api/chart-data/${portfolioId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Remove loading indicator
+            const loadingDiv = document.getElementById('chartLoading');
+            if (loadingDiv) loadingDiv.remove();
+            
+            // Update chart data
+            originalChartData = {
+                dates: data.dates || [],
+                portfolio_values: data.portfolio_values || [],
+                voo_values: data.voo_values || [],
+                qqq_values: data.qqq_values || []
+            };
+            
+            // Initialize chart with the loaded data
+            initializeChart();
+            
+            // Log chart data status
+            if (originalChartData.dates.length === 0) {
+                console.warn('Chart data is empty. This may indicate an issue with data generation.');
+                logActivity('Warning: Chart data is empty. Please check server logs for details.');
+            } else {
+                console.log(`Chart data loaded with ${originalChartData.dates.length} data points`);
+                logActivity(`Chart data loaded with ${originalChartData.dates.length} data points`);
+            }
+            
+            // Apply any saved filters
+            applyChartFilters();
+        })
+        .catch(error => {
+            console.error('Error loading chart data:', error);
+            logActivity('Error loading chart data: ' + error.message);
+            
+            // Remove loading indicator
+            const loadingDiv = document.getElementById('chartLoading');
+            if (loadingDiv) loadingDiv.remove();
+            
+            // Initialize chart with empty data
+            initializeChart();
+        });
 }
 
+// Function to initialize chart
+function initializeChart() {
+
 const ctx = document.getElementById('portfolioChart').getContext('2d');
-const chart = new Chart(ctx, {
+let chart;
+
+// Initialize the chart with data
+chart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: originalChartData.dates,
@@ -483,11 +541,6 @@ document.addEventListener('DOMContentLoaded', function() {
             filterChartByDate(this.value);
             localStorage.removeItem('chartPeriod'); // Clear period preference for custom date
         });
-        
-        if (originalChartData.dates.length > 0) {
-            dateInput.min = originalChartData.dates[0];
-            dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
-        }
     }
     
     // Add radio button event listeners
@@ -498,6 +551,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+});
+
+// Activity logging
+function logActivity(message) {
+    const logContent = document.getElementById('logContent');
+    const timestamp = new Date().toLocaleTimeString();
+    logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+    document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
+}
+
+// Function to apply saved chart filters
+function applyChartFilters() {
+    // Set date input min/max if we have data
+    const dateInput = document.getElementById('chartStartDate');
+    if (dateInput && originalChartData.dates.length > 0) {
+        dateInput.min = originalChartData.dates[0];
+        dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
+    }
     
     // Restore saved preferences
     const savedPeriod = localStorage.getItem('chartPeriod');
@@ -512,23 +583,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } else if (savedStartDate) {
         // Restore custom date
-        dateInput.value = savedStartDate;
-        filterChartByDate(savedStartDate);
-        document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
+        if (dateInput) {
+            dateInput.value = savedStartDate;
+            filterChartByDate(savedStartDate);
+            document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
+        }
     }
-});
-
-// Activity logging
-function logActivity(message) {
-    const logContent = document.getElementById('logContent');
-    const timestamp = new Date().toLocaleTimeString();
-    logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-    document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
 }
 
-// Log chart loading
-logActivity('Loading portfolio performance chart...');
-logActivity('Chart loaded successfully');
+// Start loading chart data asynchronously
+logActivity('Loading portfolio performance chart asynchronously...');
+{% if current_portfolio %}
+loadChartData('{{ current_portfolio.id }}');
+{% endif %}
 </script>
 {% endif %}
 

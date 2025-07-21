@@ -2,6 +2,9 @@ from app import db
 from app.models.price import PriceHistory
 from datetime import datetime, date, timedelta, timezone
 import yfinance as yf
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import pandas as pd
 
 
 class PriceService:
@@ -202,3 +205,135 @@ class PriceService:
             'gain_loss': gain_loss,
             'gain_loss_percentage': gain_loss_percentage
         }
+        
+    def batch_fetch_prices(self, tickers, period=None, start_date=None, end_date=None):
+        """
+        Fetches historical price data for multiple tickers in a single batch request
+        Returns a dictionary of {ticker: price_dataframe}
+        """
+        if not tickers:
+            return {}
+        
+        try:
+            # Use yfinance batch download capability
+            data = yf.download(
+                tickers=" ".join(tickers),
+                period=period,
+                start=start_date,
+                end=end_date,
+                group_by='ticker',
+                auto_adjust=True,
+                progress=False,
+                threads=True
+            )
+            
+            # Process the results into individual dataframes per ticker
+            result = {}
+            
+            # Handle single ticker case (yfinance returns different structure)
+            if len(tickers) == 1:
+                ticker = tickers[0]
+                if not data.empty:
+                    result[ticker] = data
+                return result
+            
+            # Handle multiple tickers case
+            for ticker in tickers:
+                if ticker in data.columns.levels[0]:
+                    ticker_data = data[ticker].copy()
+                    if not ticker_data.empty:
+                        result[ticker] = ticker_data
+            
+            return result
+            
+        except Exception as e:
+            print(f"Batch fetch failed: {e}")
+            return {}
+    
+    def batch_fetch_current_prices(self, tickers):
+        """
+        Fetch current prices for multiple tickers in a single batch request
+        Returns a dictionary of {ticker: current_price}
+        """
+        prices = {}
+        
+        try:
+            # Use batch_fetch_prices with period="1d" to get the most recent prices
+            data = self.batch_fetch_prices(tickers, period="1d")
+            
+            # Extract the most recent closing price for each ticker
+            for ticker, df in data.items():
+                if not df.empty and 'Close' in df.columns:
+                    prices[ticker] = float(df['Close'].iloc[-1])
+                else:
+                    prices[ticker] = None
+            
+            # For any missing tickers, try to get from cache
+            for ticker in tickers:
+                if ticker not in prices or prices[ticker] is None:
+                    cached_price = self.get_cached_price(ticker, date.today())
+                    if cached_price:
+                        prices[ticker] = cached_price
+            
+            return prices
+            
+        except Exception as e:
+            print(f"Batch fetch current prices failed: {e}")
+            # Fallback to individual fetches
+            for ticker in tickers:
+                prices[ticker] = self.get_current_price(ticker, use_stale=True)
+            return prices
+    
+    async def fetch_prices_parallel(self, tickers, max_workers=4, chunk_size=20):
+        """
+        Fetch prices for multiple tickers in parallel using asyncio
+        Returns a dictionary of {ticker: price_dataframe}
+        """
+        if not tickers:
+            return {}
+        
+        # Split tickers into chunks to avoid overwhelming the API
+        chunks = [tickers[i:i+chunk_size] for i in range(0, len(tickers), chunk_size)]
+        
+        # Create tasks for each chunk
+        loop = asyncio.get_event_loop()
+        tasks = []
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for chunk in chunks:
+                task = loop.run_in_executor(
+                    executor,
+                    self.batch_fetch_prices,
+                    chunk
+                )
+                tasks.append(task)
+            
+            # Wait for all tasks to complete
+            results = await asyncio.gather(*tasks)
+        
+        # Merge results from all chunks
+        merged_results = {}
+        for result in results:
+            merged_results.update(result)
+        
+        return merged_results
+    
+    async def fetch_current_prices_parallel(self, tickers, max_workers=4, chunk_size=20):
+        """
+        Fetch current prices for multiple tickers in parallel
+        Returns a dictionary of {ticker: current_price}
+        """
+        # Get price dataframes in parallel
+        dataframes = await self.fetch_prices_parallel(tickers, max_workers, chunk_size)
+        
+        # Extract current prices from dataframes
+        prices = {}
+        for ticker, df in dataframes.items():
+            if not df.empty and 'Close' in df.columns:
+                prices[ticker] = float(df['Close'].iloc[-1])
+            else:
+                # Fallback to cached price if available
+                cached_price = self.get_cached_price(ticker, date.today())
+                prices[ticker] = cached_price
+        
+        return prices
