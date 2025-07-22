@@ -767,19 +767,24 @@ def get_price_from_dataframe(price_df, date_str):
     except Exception:
         pass
     
-    # Method 2: Find closest previous date
+    # Method 2: Find closest previous date using safer approach
     try:
-        # Convert all index values to strings for consistent comparison
-        string_index = price_df.index.astype(str)
-        available_dates = [d for d in string_index if d < date_str]
+        # Get the last price (most recent) as a fallback
+        last_price = float(price_df['Close'].iloc[-1])
         
-        if available_dates:
-            closest_date = max(available_dates)
-            # Find the original index position
-            original_idx = string_index.get_loc(closest_date)
-            # Get the price using integer location
-            price = price_df.iloc[original_idx]['Close']
-            return float(price)
+        # Try to find a date less than the target date
+        for idx in price_df.index:
+            idx_str = str(idx)
+            if idx_str < date_str:
+                try:
+                    price = float(price_df.loc[idx, 'Close'])
+                    # Update last_price with the most recent price before target date
+                    last_price = price
+                except:
+                    pass
+        
+        # Return the last valid price we found
+        return last_price
     except Exception:
         pass
     
