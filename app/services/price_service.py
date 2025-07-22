@@ -149,28 +149,36 @@ class PriceService:
         return prices
     
     def cache_price_data(self, ticker, price_date, price, is_intraday):
-        price_history = PriceHistory.query.filter_by(
-            ticker=ticker, 
-            date=price_date
-        ).first()
+        # Skip caching if price is None, NaN, or invalid
+        if price is None or (isinstance(price, float) and (pd.isna(price) or pd.isnull(price))):
+            return
         
-        if price_history:
-            price_history.close_price = price
-            price_history.is_intraday = is_intraday
-            price_history.price_timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
-            price_history.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)
-        else:
-            price_history = PriceHistory(
-                ticker=ticker,
-                date=price_date,
-                close_price=price,
-                is_intraday=is_intraday,
-                price_timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
-                last_updated=datetime.now(timezone.utc).replace(tzinfo=None)
-            )
-            db.session.add(price_history)
-        
-        db.session.commit()
+        try:
+            price_history = PriceHistory.query.filter_by(
+                ticker=ticker, 
+                date=price_date
+            ).first()
+            
+            if price_history:
+                price_history.close_price = price
+                price_history.is_intraday = is_intraday
+                price_history.price_timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
+                price_history.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)
+            else:
+                price_history = PriceHistory(
+                    ticker=ticker,
+                    date=price_date,
+                    close_price=price,
+                    is_intraday=is_intraday,
+                    price_timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
+                    last_updated=datetime.now(timezone.utc).replace(tzinfo=None)
+                )
+                db.session.add(price_history)
+            
+            db.session.commit()
+        except Exception as e:
+            print(f"Error caching price data for {ticker}: {e}")
+            db.session.rollback()
     
     def get_price_history(self, ticker, start_date, end_date):
         return PriceHistory.query.filter(
@@ -227,7 +235,7 @@ class PriceService:
                 threads=True
             )
             
-            # Process the results into individual dataframes per ticker
+            # Initialize result dictionary
             result = {}
             
             # Handle single ticker case (yfinance returns different structure)
@@ -238,16 +246,20 @@ class PriceService:
                 return result
             
             # Handle multiple tickers case
-            for ticker in tickers:
-                if ticker in data.columns.levels[0]:
-                    ticker_data = data[ticker].copy()
-                    if not ticker_data.empty:
-                        result[ticker] = ticker_data
+            if hasattr(data.columns, 'levels') and len(data.columns.levels) > 0:
+                for ticker in tickers:
+                    if ticker in data.columns.levels[0]:
+                        ticker_data = data[ticker].copy()
+                        if not ticker_data.empty:
+                            result[ticker] = ticker_data
+            else:
+                print(f"Batch fetch failed: 'RangeIndex' object has no attribute 'levels'")
             
             return result
             
         except Exception as e:
             print(f"Batch fetch failed: {e}")
+            # Return empty dictionary on error
             return {}
     
     def batch_fetch_current_prices(self, tickers):
@@ -283,6 +295,78 @@ class PriceService:
             for ticker in tickers:
                 prices[ticker] = self.get_current_price(ticker, use_stale=True)
             return prices
+            
+    def get_current_prices_batch(self, tickers, use_cache=False):
+        """
+        Get current prices for multiple tickers with optional caching
+        Returns a dictionary of {ticker: current_price}
+        """
+        prices = {}
+        today = date.today()
+        
+        # If using cache, check for fresh cached prices first
+        if use_cache:
+            fresh_tickers = {}
+            stale_tickers = []
+            
+            for ticker in tickers:
+                cached_price = self.get_cached_price(ticker, today)
+                if cached_price and self.is_cache_fresh(ticker, today):
+                    prices[ticker] = cached_price
+                    fresh_tickers[ticker] = True
+                else:
+                    stale_tickers.append(ticker)
+            
+            # Only fetch prices for tickers with stale or no cache
+            if stale_tickers:
+                api_prices = self.batch_fetch_prices(stale_tickers, period="1d")
+                
+                for ticker in stale_tickers:
+                    if ticker in api_prices and api_prices[ticker] is not None:
+                        # Extract price from DataFrame
+                        try:
+                            df = api_prices[ticker]
+                            if isinstance(df, pd.DataFrame) and not df.empty and 'Close' in df.columns:
+                                price = float(df['Close'].iloc[-1])
+                                prices[ticker] = price
+                                # Cache the new price
+                                self.cache_price_data(ticker, today, price, True)
+                            else:
+                                # If API returned empty data, use cached price if available
+                                cached_price = self.get_cached_price(ticker, today)
+                                prices[ticker] = cached_price if cached_price else None
+                        except Exception as e:
+                            print(f"Error processing price for {ticker}: {e}")
+                            # If error, use cached price if available
+                            cached_price = self.get_cached_price(ticker, today)
+                            prices[ticker] = cached_price if cached_price else None
+                    else:
+                        # If ticker not in API results, use cached price if available
+                        cached_price = self.get_cached_price(ticker, today)
+                        prices[ticker] = cached_price if cached_price else None
+        else:
+            # Not using cache, fetch all prices from API
+            api_prices = self.batch_fetch_prices(tickers, period="1d")
+            
+            for ticker in tickers:
+                if ticker in api_prices and api_prices[ticker] is not None:
+                    # Extract price from DataFrame
+                    try:
+                        df = api_prices[ticker]
+                        if isinstance(df, pd.DataFrame) and not df.empty and 'Close' in df.columns:
+                            price = float(df['Close'].iloc[-1])
+                            prices[ticker] = price
+                            # Cache the new price
+                            self.cache_price_data(ticker, today, price, True)
+                        else:
+                            prices[ticker] = None
+                    except Exception as e:
+                        print(f"Error processing price for {ticker}: {e}")
+                        prices[ticker] = None
+                else:
+                    prices[ticker] = None
+        
+        return prices
     
     async def fetch_prices_parallel(self, tickers, max_workers=4, chunk_size=20):
         """

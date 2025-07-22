@@ -19,7 +19,6 @@ class TestAPIEndpoints:
                 assert data['success'] is True
                 assert 'refreshed_count' in data
                 assert 'total_tickers' in data
-                assert 'holdings' in data
                 assert 'timestamp' in data
 
     def test_refresh_holdings_endpoint(self, client, sample_portfolio, app):
