@@ -738,7 +738,7 @@ def get_ticker_price_dataframe(ticker, start_date, end_date):
 
 def get_price_from_dataframe(price_df, date_str):
     """Get price for date from DataFrame, using closest previous if needed"""
-    if price_df is None or price_df.empty:
+    if price_df is None or not isinstance(price_df, pd.DataFrame) or price_df.empty or 'Close' not in price_df.columns:
         return None
     
     try:
@@ -753,7 +753,8 @@ def get_price_from_dataframe(price_df, date_str):
     
     try:
         # Find closest previous date
-        available_dates = [d for d in price_df.index if d < date_str]
+        # Convert index to string for safe comparison if it's not already
+        available_dates = [d for d in price_df.index if str(d) < date_str]
         if available_dates:
             closest_date = max(available_dates)
             price = price_df.loc[closest_date, 'Close']
