@@ -433,9 +433,8 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
             gain_loss = market_value - total_cost
             gain_loss_percentage = (gain_loss / total_cost * 100) if total_cost > 0 else 0
             
-            # Calculate ETF performance for this holding
-            voo_performance = calculate_etf_performance_for_holding(ticker, transactions, 'VOO')
-            qqq_performance = calculate_etf_performance_for_holding(ticker, transactions, 'QQQ')
+            # Skip ETF performance calculation for faster loading
+            # We'll add this data later via AJAX if needed
             
             # Calculate portfolio percentage
             portfolio_percentage = (market_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
@@ -448,8 +447,8 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'cost_basis': total_cost,
                 'gain_loss': gain_loss,
                 'gain_loss_percentage': gain_loss_percentage,
-                'voo_performance': voo_performance,
-                'qqq_performance': qqq_performance,
+                'voo_performance': 0,  # Placeholder for now
+                'qqq_performance': 0,  # Placeholder for now
                 'portfolio_percentage': portfolio_percentage,
                 'data_age_minutes': freshness,
                 'is_stale': is_stale
