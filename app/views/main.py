@@ -576,8 +576,15 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
                         if price:
                             portfolio_value += shares * price
                     except Exception as e:
-                        print(f"[CHART] Error getting price for {ticker}: {e}")
-                        continue
+                        print(f"[CHART] Error getting price for {ticker} on {date_str}: {e}")
+                        # Try to get any price for this ticker as fallback
+                        try:
+                            if ticker in price_histories and not price_histories[ticker].empty:
+                                fallback_price = price_histories[ticker]['Close'].iloc[-1]
+                                portfolio_value += shares * float(fallback_price)
+                                print(f"[CHART] Using fallback price for {ticker}: {fallback_price}")
+                        except Exception:
+                            pass
             
             # Calculate ETF values
             try:
@@ -738,9 +745,18 @@ def get_ticker_price_dataframe(ticker, start_date, end_date):
 
 def get_price_from_dataframe(price_df, date_str):
     """Get price for date from DataFrame, using closest previous if needed"""
+    # Enhanced validation
     if price_df is None or not isinstance(price_df, pd.DataFrame) or price_df.empty or 'Close' not in price_df.columns:
         return None
     
+    # Ensure date_str is a string
+    if not isinstance(date_str, str):
+        try:
+            date_str = str(date_str)
+        except:
+            return None
+    
+    # Method 1: Direct lookup
     try:
         if date_str in price_df.index:
             price = price_df.loc[date_str, 'Close']
@@ -751,20 +767,23 @@ def get_price_from_dataframe(price_df, date_str):
     except Exception:
         pass
     
+    # Method 2: Find closest previous date
     try:
-        # Find closest previous date
-        # Convert index to string for safe comparison if it's not already
-        available_dates = [d for d in price_df.index if str(d) < date_str]
+        # Convert all index values to strings for consistent comparison
+        string_index = price_df.index.astype(str)
+        available_dates = [d for d in string_index if d < date_str]
+        
         if available_dates:
             closest_date = max(available_dates)
-            price = price_df.loc[closest_date, 'Close']
-            if isinstance(price, pd.Series):
-                return float(price.iloc[0])
+            # Find the original index position
+            original_idx = string_index.get_loc(closest_date)
+            # Get the price using integer location
+            price = price_df.iloc[original_idx]['Close']
             return float(price)
     except Exception:
         pass
     
-    # If all else fails, try to get any available price
+    # Method 3: If all else fails, try to get any available price
     try:
         if not price_df.empty and 'Close' in price_df.columns:
             price = price_df['Close'].iloc[-1]  # Get last available price
