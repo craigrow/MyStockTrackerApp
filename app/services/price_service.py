@@ -15,21 +15,26 @@ class PriceService:
         
         # First check cache
         cached_price = self.get_cached_price(ticker, date.today())
-        if cached_price and self.is_cache_fresh(ticker, date.today()):
+        if cached_price:
             return cached_price
         
-        # If we allow stale data and have cached price, return it
-        if use_stale and cached_price:
-            return cached_price
+        # For dashboard loading, we'll skip API calls and just use the most recent price
+        if use_stale:
+            # Try to get the most recent price from the database
+            most_recent = PriceHistory.query.filter_by(ticker=ticker).order_by(PriceHistory.date.desc()).first()
+            if most_recent:
+                return most_recent.close_price
         
-        # Fetch from API with timeout
-        price = self.fetch_from_api(ticker, timeout=10)
-        if price:
-            self.cache_price_data(ticker, date.today(), price, True)
-            return price
+        # Only fetch from API if explicitly requested (not for dashboard loading)
+        if not use_stale:
+            # Fetch from API with timeout
+            price = self.fetch_from_api(ticker, timeout=10)
+            if price:
+                self.cache_price_data(ticker, date.today(), price, True)
+                return price
         
-        # Fallback to cached price if API fails
-        return cached_price
+        # Return None if no price is available
+        return None
     
     def get_cached_price(self, ticker, price_date):
         price_history = PriceHistory.query.filter_by(
