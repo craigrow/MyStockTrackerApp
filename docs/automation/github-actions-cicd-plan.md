@@ -1,7 +1,7 @@
 # GitHub Actions CI/CD Automation Plan
 
 ## Overview
-Automate the current 7-step manual deployment process with GitHub Actions, including a UAT approval gate.
+Automate the current 7-step manual deployment process with GitHub Actions, including a **MANDATORY UAT approval gate**.
 
 ## Current Manual Process (To Be Eliminated)
 1. Run full test suite in dev branch
@@ -28,11 +28,12 @@ Automate the current 7-step manual deployment process with GitHub Actions, inclu
    - Deploy to `mystocktrackerapp-devq.herokuapp.com`
    - Available for UAT testing
 
-3. **UAT Approval Gate** ⏸️ **MANUAL STEP**
+3. **UAT Approval Gate** ⏸️ **MANDATORY MANUAL STEP**
    - Workflow pauses after devQ deployment
    - User performs UAT on devQ environment
-   - User approves via GitHub Actions interface
-   - Only approved deployments proceed to production
+   - User explicitly approves via GitHub Actions interface
+   - **Only approved deployments proceed to production**
+   - **Direct deployments to production are strictly prohibited**
 
 4. **Promote to Main Job** (After approval)
    - Checkout and pull latest main branch
@@ -48,6 +49,7 @@ Automate the current 7-step manual deployment process with GitHub Actions, inclu
 - [ ] Add GitHub Secrets:
   - `HEROKU_API_KEY` (from Heroku account settings)
   - `HEROKU_EMAIL` (Heroku account email)
+- [ ] Configure branch protection rules to prevent direct pushes to main
 
 ### 2. Workflow File
 - [ ] Commit `.github/workflows/ci-cd.yml` to repository
@@ -62,9 +64,10 @@ Automate the current 7-step manual deployment process with GitHub Actions, inclu
 ## Benefits
 - **Eliminates 7-step manual process** → Single `git push origin devQ`
 - **Prevents broken deployments** with automatic testing
-- **Maintains quality control** with UAT approval gate
+- **Maintains quality control** with mandatory UAT approval gate
 - **Ensures environment sync** automatically
 - **Provides full audit trail** in GitHub Actions
+- **Prevents unauthorized production deployments** with branch protection
 
 ## User Experience After Implementation
 ```bash
@@ -81,8 +84,15 @@ git push origin devQ
 - Keep existing manual scripts as backup
 - Can disable GitHub Actions if needed
 - Manual deployment process remains available
+- For emergencies, follow the documented emergency rollback procedure
+
+## Emergency Procedures
+- In case of critical production issues, follow the emergency rollback procedure in `docs/emergency_rollback_procedure.md`
+- Emergency procedures require explicit approval and documentation
+- Even emergency actions must follow a controlled process
 
 ## Files Created
 - `.github/workflows/ci-cd.yml` - Main workflow
 - `scripts/deploy.sh` - Manual backup script
+- `docs/emergency_rollback_procedure.md` - Emergency rollback procedure
 - This documentation file
