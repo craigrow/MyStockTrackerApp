@@ -431,8 +431,9 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
             gain_loss = market_value - total_cost
             gain_loss_percentage = (gain_loss / total_cost * 100) if total_cost > 0 else 0
             
-            # Skip ETF performance calculation for faster loading
-            # We'll add this data later via AJAX if needed
+            # Calculate ETF performance for this holding
+            voo_performance = calculate_etf_performance_for_holding(ticker, transactions, 'VOO')
+            qqq_performance = calculate_etf_performance_for_holding(ticker, transactions, 'QQQ')
             
             # Calculate portfolio percentage
             portfolio_percentage = (market_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
@@ -445,8 +446,8 @@ def get_holdings_with_performance(portfolio_id, portfolio_service, price_service
                 'cost_basis': total_cost,
                 'gain_loss': gain_loss,
                 'gain_loss_percentage': gain_loss_percentage,
-                'voo_performance': 0,  # Placeholder for now
-                'qqq_performance': 0,  # Placeholder for now
+                'voo_performance': voo_performance,
+                'qqq_performance': qqq_performance,
                 'portfolio_percentage': portfolio_percentage,
                 'data_age_minutes': freshness,
                 'is_stale': is_stale
@@ -506,9 +507,6 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     tickers = list(set(t.ticker for t in transactions))
     print(f"[CHART] Portfolio {portfolio_id} has {len(tickers)} unique tickers")
     
-    # Removed ticker threshold check to ensure chart always generates
-    # Even with many tickers, it's better to show a chart than nothing
-    
     # Get date range from first transaction to today
     end_date = date.today()
     start_date = min(t.date for t in transactions)
@@ -522,7 +520,12 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     print(f"[API] Batch fetching price histories for {len(all_tickers)} tickers...")
     price_histories = {}
     for ticker in all_tickers:
-        price_histories[ticker] = get_ticker_price_dataframe(ticker, start_date, end_date)
+        try:
+            price_histories[ticker] = get_ticker_price_dataframe(ticker, start_date, end_date)
+        except Exception as e:
+            print(f"[CHART] Error fetching price history for {ticker}: {e}")
+            # Create an empty DataFrame as a placeholder
+            price_histories[ticker] = pd.DataFrame(columns=['Close'])
     
     # Generate date range
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -626,6 +629,21 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
             voo_values = [0]
             qqq_values = [0]
     
+    # Ensure we have at least one data point
+    if not dates:
+        today = date.today()
+        dates = [today.strftime('%Y-%m-%d')]
+        portfolio_values = [0]
+        voo_values = [0]
+        qqq_values = [0]
+    
+    # Ensure all arrays are the same length
+    min_length = min(len(dates), len(portfolio_values), len(voo_values), len(qqq_values))
+    dates = dates[:min_length]
+    portfolio_values = portfolio_values[:min_length]
+    voo_values = voo_values[:min_length]
+    qqq_values = qqq_values[:min_length]
+    
     return {
         'dates': dates,
         'portfolio_values': portfolio_values,
@@ -668,22 +686,28 @@ def get_ticker_price_dataframe(ticker, start_date, end_date):
     import time
     
     # Get cached prices
-    cached_prices = PriceHistory.query.filter(
-        PriceHistory.ticker == ticker,
-        PriceHistory.date >= start_date,
-        PriceHistory.date <= end_date
-    ).all()
-    
-    # Convert to DataFrame
-    if cached_prices:
-        cached_df = pd.DataFrame([
-            {'Date': p.date.strftime('%Y-%m-%d'), 'Close': p.close_price}
-            for p in cached_prices
-        ])
-        cached_df.set_index('Date', inplace=True)
-        print(f"[CACHE] Found {len(cached_prices)} cached prices for {ticker}")
-    else:
-        cached_df = pd.DataFrame()
+    try:
+        cached_prices = PriceHistory.query.filter(
+            PriceHistory.ticker == ticker,
+            PriceHistory.date >= start_date,
+            PriceHistory.date <= end_date
+        ).all()
+        
+        # Convert to DataFrame
+        if cached_prices:
+            cached_df = pd.DataFrame([
+                {'Date': p.date.strftime('%Y-%m-%d'), 'Close': p.close_price}
+                for p in cached_prices
+            ])
+            cached_df.set_index('Date', inplace=True)
+            print(f"[CACHE] Found {len(cached_prices)} cached prices for {ticker}")
+        else:
+            cached_df = pd.DataFrame(columns=['Close'])
+            cached_df.index.name = 'Date'
+    except Exception as e:
+        print(f"[CACHE] Error retrieving cached prices for {ticker}: {e}")
+        cached_df = pd.DataFrame(columns=['Close'])
+        cached_df.index.name = 'Date'
     
     # Check for missing dates
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -719,13 +743,14 @@ def get_ticker_price_dataframe(ticker, start_date, end_date):
                             )
                             db.session.add(price_record)
                             records_added += 1
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"[CACHE] Error creating price record for {ticker} on {price_date}: {e}")
                 
                 try:
                     db.session.commit()
                     print(f"[CACHE] Stored {records_added} new prices for {ticker}")
-                except Exception:
+                except Exception as e:
+                    print(f"[CACHE] Error committing price records for {ticker}: {e}")
                     db.session.rollback()
                 
                 # Add to DataFrame
@@ -735,17 +760,35 @@ def get_ticker_price_dataframe(ticker, start_date, end_date):
                 if cached_df.empty:
                     cached_df = new_df
                 else:
-                    cached_df = pd.concat([cached_df, new_df]).sort_index()
+                    try:
+                        cached_df = pd.concat([cached_df, new_df]).sort_index()
+                    except Exception as e:
+                        print(f"[CACHE] Error concatenating DataFrames for {ticker}: {e}")
+                        # If concat fails, just use the new data
+                        if not new_df.empty:
+                            cached_df = new_df
         
         except Exception as e:
             print(f"[API] Error fetching {ticker}: {e}")
+    
+    # Ensure we have a valid DataFrame with the right columns
+    if cached_df.empty:
+        cached_df = pd.DataFrame(columns=['Close'])
+        cached_df.index.name = 'Date'
+    elif 'Close' not in cached_df.columns:
+        print(f"[CACHE] Warning: 'Close' column missing from DataFrame for {ticker}")
+        cached_df['Close'] = 0.0
     
     return cached_df
 
 def get_price_from_dataframe(price_df, date_str):
     """Get price for date from DataFrame, using closest previous if needed"""
     # Enhanced validation
-    if price_df is None or not isinstance(price_df, pd.DataFrame) or price_df.empty or 'Close' not in price_df.columns:
+    if price_df is None or not isinstance(price_df, pd.DataFrame) or price_df.empty:
+        return None
+    
+    # Check if 'Close' column exists
+    if 'Close' not in price_df.columns:
         return None
     
     # Ensure date_str is a string
@@ -763,13 +806,17 @@ def get_price_from_dataframe(price_df, date_str):
             if isinstance(price, pd.Series):
                 return float(price.iloc[0])
             return float(price)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[PRICE] Direct lookup failed for {date_str}: {e}")
     
     # Method 2: Find closest previous date using safer approach
     try:
         # Get the last price (most recent) as a fallback
-        last_price = float(price_df['Close'].iloc[-1])
+        last_price = None
+        try:
+            last_price = float(price_df['Close'].iloc[-1])
+        except (IndexError, ValueError) as e:
+            print(f"[PRICE] Failed to get last price: {e}")
         
         # Try to find a date less than the target date
         for idx in price_df.index:
@@ -779,21 +826,35 @@ def get_price_from_dataframe(price_df, date_str):
                     price = float(price_df.loc[idx, 'Close'])
                     # Update last_price with the most recent price before target date
                     last_price = price
-                except:
-                    pass
+                except Exception as e:
+                    print(f"[PRICE] Failed to get price for {idx_str}: {e}")
         
         # Return the last valid price we found
         return last_price
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[PRICE] Closest date lookup failed: {e}")
     
     # Method 3: If all else fails, try to get any available price
     try:
         if not price_df.empty and 'Close' in price_df.columns:
-            price = price_df['Close'].iloc[-1]  # Get last available price
-            return float(price)
-    except Exception:
-        pass
+            # Find the first non-NaN value
+            for i in range(len(price_df)):
+                try:
+                    price = price_df['Close'].iloc[i]
+                    if pd.notna(price):
+                        return float(price)
+                except:
+                    continue
+            
+            # If we get here, try the last value as a last resort
+            try:
+                price = price_df['Close'].iloc[-1]
+                if pd.notna(price):
+                    return float(price)
+            except:
+                pass
+    except Exception as e:
+        print(f"[PRICE] Fallback price lookup failed: {e}")
     
     return None
 
@@ -1169,6 +1230,9 @@ def calculate_etf_performance_for_holding(ticker, transactions, etf_ticker):
         
         # Calculate weighted average purchase date and total investment
         total_investment = sum(t.total_value for t in buy_transactions)
+        if total_investment <= 0:
+            return 0
+            
         weighted_date_sum = 0
         
         for transaction in buy_transactions:
@@ -1188,14 +1252,18 @@ def calculate_etf_performance_for_holding(ticker, transactions, etf_ticker):
         price_service = PriceService()
         current_etf_price = price_service.get_current_price(etf_ticker, use_stale=True)
         
-        if etf_purchase_price and current_etf_price:
+        if etf_purchase_price and current_etf_price and etf_purchase_price > 0:
             performance = ((current_etf_price - etf_purchase_price) / etf_purchase_price) * 100
             return round(performance, 2)
+        else:
+            print(f"[ETF] Missing price data for {etf_ticker}: purchase_price={etf_purchase_price}, current_price={current_etf_price}")
+            return 0
         
     except Exception as e:
-        print(f"Error calculating ETF performance for {ticker} vs {etf_ticker}: {e}")
-    
-    return 0
+        print(f"[ETF] Error calculating ETF performance for {ticker} vs {etf_ticker}: {e}")
+        import traceback
+        traceback.print_exc()
+        return 0
 
 def get_previous_trading_day(current_date):
     """Get the previous trading day (skip weekends and holidays)"""

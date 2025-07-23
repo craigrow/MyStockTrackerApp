@@ -2,8 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from flask import json
 from app import create_app, db
-from app.models.portfolio import Portfolio
-from app.models.transaction import Transaction
+from app.models.portfolio import Portfolio, StockTransaction as Transaction
 from app.models.price import PriceHistory
 from datetime import date, datetime, timedelta
 
@@ -17,7 +16,11 @@ class TestProgressiveLoading(unittest.TestCase):
         self.client = self.app.test_client()
         
         # Create test portfolio
-        self.portfolio = Portfolio(name='Test Portfolio', description='Test Description')
+        self.portfolio = Portfolio(
+            name='Test Portfolio', 
+            description='Test Description',
+            user_id='test_user'
+        )
         db.session.add(self.portfolio)
         db.session.commit()
         
