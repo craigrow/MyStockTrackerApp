@@ -9,7 +9,7 @@ This project is a web app for tracking the performance of stock portfolios v. ma
     and referred to as Prod. 
     2. devQ is deployed here: https://mystocktrackerapp-devq-6cb9ce7e7076.herokuapp.com/ and referred to as devQ. 
     3. devR is deployed here: https://mystocktrackerapp-devr-607807562777.herokuapp.com/dashboard and referred to as devR.
-4. There is a file at /Users/craigrow/q/src/AmazonBuilderGenAIPowerUsersQContext/scripts/code-assist.script.md with further instructions for AI agents. 
+4. There is a file at with further instructions for AI agents. 
 5. Before starting any coding, please become familiar with all the documents mentioned above and confirm any details necessary.
 
 ## ⚠️ CRITICAL: Branch Synchronization Protocol
