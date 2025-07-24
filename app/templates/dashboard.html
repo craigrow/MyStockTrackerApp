@@ -348,15 +348,17 @@ function loadChartData(portfolioId) {
     
     // Show loading indicator in chart
     const chartCanvas = document.getElementById('portfolioChart');
-    const loadingDiv = document.createElement('div');
-    loadingDiv.id = 'chartLoading';
-    loadingDiv.style.position = 'absolute';
-    loadingDiv.style.top = '50%';
-    loadingDiv.style.left = '50%';
-    loadingDiv.style.transform = 'translate(-50%, -50%)';
-    loadingDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><div class="mt-2">Loading chart data...</div>';
-    chartCanvas.parentNode.style.position = 'relative';
-    chartCanvas.parentNode.appendChild(loadingDiv);
+    if (chartCanvas) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'chartLoading';
+        loadingDiv.style.position = 'absolute';
+        loadingDiv.style.top = '50%';
+        loadingDiv.style.left = '50%';
+        loadingDiv.style.transform = 'translate(-50%, -50%)';
+        loadingDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><div class="mt-2">Loading chart data...</div>';
+        chartCanvas.parentNode.style.position = 'relative';
+        chartCanvas.parentNode.appendChild(loadingDiv);
+    }
     
     // Fetch chart data from API
     logActivity('Fetching chart data from /api/chart-data/' + portfolioId);
