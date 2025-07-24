@@ -9,6 +9,7 @@ from app.models.cache import PortfolioCache
 from app import db
 import uuid
 import logging
+import threading
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -274,8 +275,12 @@ def dashboard():
             
             stale_tickers = stale_holdings + stale_etfs  # Keep for button logic
             
-            # Trigger background chart data generation
-            chart_generator.generate_chart_data(current_portfolio.id)
+            # Queue background chart data generation (non-blocking)
+            from flask import current_app
+            def generate_with_context():
+                with current_app.app_context():
+                    chart_generator.generate_chart_data(current_portfolio.id)
+            threading.Thread(target=generate_with_context, daemon=True).start()
             
         except Exception as e:
             logger.error(f"Error in dashboard route: {e}")

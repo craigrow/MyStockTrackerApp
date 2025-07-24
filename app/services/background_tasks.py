@@ -264,29 +264,9 @@ class BackgroundChartGenerator:
             'percent_complete': 0
         }
         
-        # Generate chart data synchronously for immediate use
-        try:
-            from app.views.main import generate_chart_data
-            chart_data = generate_chart_data(portfolio_id, self.portfolio_service, self.price_service)
-            self.chart_data[portfolio_id] = chart_data
-            self.progress = {
-                'status': 'completed',
-                'portfolio_id': portfolio_id,
-                'start_time': datetime.utcnow() - timedelta(seconds=1),
-                'completion_time': datetime.utcnow(),
-                'source': 'synchronous_generation'
-            }
-            
-            # Cache the chart data in the background
-            threading.Thread(target=self._cache_chart_data, args=(portfolio_id, chart_data), daemon=True).start()
-            
-            logger.info(f"Chart data generated synchronously for portfolio {portfolio_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error generating chart data synchronously: {e}")
-            # Fall back to asynchronous generation
-            threading.Thread(target=self._generate_chart_data, args=(portfolio_id,), daemon=True).start()
-            return True
+        # Generate chart data asynchronously (non-blocking)
+        threading.Thread(target=self._generate_chart_data, args=(portfolio_id,), daemon=True).start()
+        return True
     
     def _generate_chart_data(self, portfolio_id):
         """Generate chart data in background with progress tracking"""
