@@ -508,14 +508,8 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
             'qqq_values': []
         }
     
-    # Get unique tickers and check if we have too many (performance optimization)
-    tickers = list(set(t.ticker for t in transactions))
-    print(f"[CHART] Portfolio {portfolio_id} has {len(tickers)} unique tickers")
-    
-    # Memory optimization: If too many tickers, return simplified chart data
-    if len(tickers) > 20:
-        print(f"[CHART] Too many tickers ({len(tickers)}), returning simplified chart data")
-        return generate_simplified_chart_data(portfolio_id, portfolio_service, price_service)
+    # Always use simplified chart data for better performance
+    return generate_simplified_chart_data(portfolio_id, portfolio_service, price_service)
     
     # Get date range from first transaction to today
     end_date = date.today()
