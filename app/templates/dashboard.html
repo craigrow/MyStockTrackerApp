@@ -909,6 +909,13 @@ function updateHoldingsTable(holdings) {
 
 // Log page load
 logActivity('Dashboard loaded');
+alert('JavaScript is working - check for chart canvas');
+const testCanvas = document.getElementById('portfolioChart');
+if (testCanvas) {
+    alert('Chart canvas found');
+} else {
+    alert('Chart canvas NOT found');
+}
 
 // Load detailed holdings data immediately
 {% if current_portfolio %}
