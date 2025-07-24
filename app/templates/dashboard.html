@@ -602,7 +602,10 @@ function applyChartFilters() {
 logActivity('Loading portfolio performance chart asynchronously...');
 {% if current_portfolio %}
 logActivity('About to call loadChartData for portfolio {{ current_portfolio.id }}');
+alert('About to call loadChartData');
 loadChartData('{{ current_portfolio.id }}');
+{% else %}
+alert('No current portfolio found');
 {% endif %}
 </script>
 {% endif %}
