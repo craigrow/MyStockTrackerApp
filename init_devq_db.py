@@ -3,7 +3,7 @@
 
 from app import create_app, db
 from app.models.portfolio import Portfolio
-from app.models.transactions import Transaction
+from app.models.portfolio import StockTransaction
 from datetime import date
 
 def init_db():
@@ -27,12 +27,12 @@ def init_db():
         db.session.commit()
         
         # Add sample transaction
-        transaction = Transaction(
+        transaction = StockTransaction(
             portfolio_id=portfolio.id,
             ticker="AAPL",
             transaction_type="BUY",
             shares=10,
-            price=150.00,
+            price_per_share=150.00,
             date=date(2023, 1, 15),
             total_value=1500.00
         )
