@@ -3,7 +3,7 @@
 
 from app import create_app, db
 from app.models.portfolio import Portfolio
-from app.models.transaction import Transaction
+from app.models.transactions import Transaction
 from datetime import date
 
 def init_db():
