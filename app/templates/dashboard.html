@@ -359,9 +359,14 @@ function loadChartData(portfolioId) {
     chartCanvas.parentNode.appendChild(loadingDiv);
     
     // Fetch chart data from API
+    logActivity('Fetching chart data from /api/chart-data/' + portfolioId);
     fetch(`/api/chart-data/${portfolioId}`)
-        .then(response => response.json())
+        .then(response => {
+            logActivity('Chart API response received, status: ' + response.status);
+            return response.json();
+        })
         .then(data => {
+            logActivity('Chart data parsed: ' + JSON.stringify(data).substring(0, 100) + '...');
             // Remove loading indicator
             const loadingDiv = document.getElementById('chartLoading');
             if (loadingDiv) loadingDiv.remove();
@@ -594,6 +599,7 @@ function applyChartFilters() {
 // Start loading chart data asynchronously
 logActivity('Loading portfolio performance chart asynchronously...');
 {% if current_portfolio %}
+logActivity('About to call loadChartData for portfolio {{ current_portfolio.id }}');
 loadChartData('{{ current_portfolio.id }}');
 {% endif %}
 </script>
