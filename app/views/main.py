@@ -835,7 +835,11 @@ def get_price_from_dataframe(price_df, date_str):
                 if idx_str < date_str:
                     try:
                         price = price_df.loc[idx, 'Close']
-                        if pd.notna(price):
+                        # Handle Series case
+                        if isinstance(price, pd.Series):
+                            if not price.empty and pd.notna(price.iloc[0]):
+                                last_price = float(price.iloc[0])
+                        elif pd.notna(price):
                             # Update last_price with the most recent price before target date
                             last_price = float(price)
                     except Exception as e:
