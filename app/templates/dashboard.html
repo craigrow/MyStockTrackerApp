@@ -409,7 +409,7 @@ const ctx = document.getElementById('portfolioChart').getContext('2d');
 let chart;
 
 // Initialize the chart with data
-chart = new Chart(ctx, {
+window.portfolioChart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: originalChartData.dates,
@@ -915,6 +915,30 @@ fetch(`/api/dashboard-holdings-data/{{ current_portfolio.id }}`)
     .catch(error => {
         logActivity('Error loading detailed holdings: ' + error.message);
     });
+
+// Check for updated chart data every 10 seconds
+setInterval(() => {
+    fetch(`/api/chart-data/{{ current_portfolio.id }}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.placeholder && originalChartData.dates.length <= 2) {
+                originalChartData = {
+                    dates: data.dates || [],
+                    portfolio_values: data.portfolio_values || [],
+                    voo_values: data.voo_values || [],
+                    qqq_values: data.qqq_values || []
+                };
+                
+                if (originalChartData.dates.length > 0) {
+                    initializeChart();
+                    logActivity('Chart updated with real data (' + originalChartData.dates.length + ' points)');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking for chart updates:', error);
+        });
+}, 10000);
 {% endif %}
 </script>
 {% endblock %}
