@@ -359,7 +359,7 @@ function loadChartData(portfolioId) {
     chartCanvas.parentNode.appendChild(loadingDiv);
     
     // Fetch chart data from API
-    fetch(`/api/chart-data/${portfolioId}`)
+    fetch(`/api/dashboard-chart-data/${portfolioId}`)
         .then(response => response.json())
         .then(data => {
             // Remove loading indicator
@@ -367,12 +367,16 @@ function loadChartData(portfolioId) {
             if (loadingDiv) loadingDiv.remove();
             
             // Update chart data
-            originalChartData = {
-                dates: data.dates || [],
-                portfolio_values: data.portfolio_values || [],
-                voo_values: data.voo_values || [],
-                qqq_values: data.qqq_values || []
-            };
+            if (data.chart_data) {
+                originalChartData = data.chart_data;
+            } else {
+                originalChartData = {
+                    dates: data.dates || [],
+                    portfolio_values: data.portfolio_values || [],
+                    voo_values: data.voo_values || [],
+                    qqq_values: data.qqq_values || []
+                };
+            }
             
             // Initialize chart with the loaded data
             initializeChart();
