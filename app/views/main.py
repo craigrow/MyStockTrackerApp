@@ -785,10 +785,12 @@ def get_price_from_dataframe(price_df, date_str):
     """Get price for date from DataFrame, using closest previous if needed"""
     # Enhanced validation
     if price_df is None or not isinstance(price_df, pd.DataFrame) or price_df.empty:
+        print(f"[PRICE] Invalid or empty DataFrame for date {date_str}")
         return None
     
     # Check if 'Close' column exists
     if 'Close' not in price_df.columns:
+        print(f"[PRICE] 'Close' column missing in DataFrame for date {date_str}")
         return None
     
     # Ensure date_str is a string
@@ -796,66 +798,83 @@ def get_price_from_dataframe(price_df, date_str):
         try:
             date_str = str(date_str)
         except:
+            print(f"[PRICE] Could not convert date to string: {date_str}")
             return None
     
-    # Method 1: Direct lookup
+    # Method 1: Direct lookup with safer approach
     try:
+        # Check if the date exists in the index
         if date_str in price_df.index:
-            price = price_df.loc[date_str, 'Close']
-            # Handle case where multiple entries exist for same date
-            if isinstance(price, pd.Series):
-                return float(price.iloc[0])
-            return float(price)
+            try:
+                price = price_df.loc[date_str, 'Close']
+                # Handle case where multiple entries exist for same date
+                if isinstance(price, pd.Series):
+                    return float(price.iloc[0])
+                return float(price)
+            except Exception as e:
+                print(f"[PRICE] Error accessing price for existing index {date_str}: {e}")
+                # Continue to fallback methods
     except Exception as e:
-        print(f"[PRICE] Direct lookup failed for {date_str}: {e}")
+        print(f"[PRICE] Error checking if date exists in index {date_str}: {e}")
+        # Continue to fallback methods
     
     # Method 2: Find closest previous date using safer approach
     try:
         # Get the last price (most recent) as a fallback
         last_price = None
         try:
-            last_price = float(price_df['Close'].iloc[-1])
+            if len(price_df) > 0:
+                last_price = float(price_df['Close'].iloc[-1])
         except (IndexError, ValueError) as e:
             print(f"[PRICE] Failed to get last price: {e}")
         
         # Try to find a date less than the target date
         for idx in price_df.index:
-            idx_str = str(idx)
-            if idx_str < date_str:
-                try:
-                    price = float(price_df.loc[idx, 'Close'])
-                    # Update last_price with the most recent price before target date
-                    last_price = price
-                except Exception as e:
-                    print(f"[PRICE] Failed to get price for {idx_str}: {e}")
+            try:
+                idx_str = str(idx)
+                if idx_str < date_str:
+                    try:
+                        price = price_df.loc[idx, 'Close']
+                        if pd.notna(price):
+                            # Update last_price with the most recent price before target date
+                            last_price = float(price)
+                    except Exception as e:
+                        print(f"[PRICE] Failed to get price for {idx_str}: {e}")
+            except Exception as e:
+                print(f"[PRICE] Error processing index {idx}: {e}")
+                continue
         
         # Return the last valid price we found
-        return last_price
+        if last_price is not None:
+            return last_price
     except Exception as e:
         print(f"[PRICE] Closest date lookup failed: {e}")
     
     # Method 3: If all else fails, try to get any available price
     try:
-        if not price_df.empty and 'Close' in price_df.columns:
+        if len(price_df) > 0:
             # Find the first non-NaN value
             for i in range(len(price_df)):
                 try:
                     price = price_df['Close'].iloc[i]
                     if pd.notna(price):
                         return float(price)
-                except:
+                except Exception as e:
+                    print(f"[PRICE] Error accessing price at index {i}: {e}")
                     continue
             
             # If we get here, try the last value as a last resort
             try:
-                price = price_df['Close'].iloc[-1]
-                if pd.notna(price):
-                    return float(price)
-            except:
-                pass
+                if len(price_df) > 0:
+                    price = price_df['Close'].iloc[-1]
+                    if pd.notna(price):
+                        return float(price)
+            except Exception as e:
+                print(f"[PRICE] Failed to get last value: {e}")
     except Exception as e:
         print(f"[PRICE] Fallback price lookup failed: {e}")
     
+    print(f"[PRICE] Could not find any valid price for date {date_str}")
     return None
 
 def get_historical_price(ticker, target_date):
