@@ -916,6 +916,13 @@ alert('JavaScript is working - check for chart canvas');
 const testCanvas = document.getElementById('portfolioChart');
 if (testCanvas) {
     alert('Chart canvas found');
+    // Call loadChartData directly here
+    {% if current_portfolio %}
+    alert('Portfolio found: {{ current_portfolio.id }}');
+    loadChartData('{{ current_portfolio.id }}');
+    {% else %}
+    alert('No portfolio found');
+    {% endif %}
 } else {
     alert('Chart canvas NOT found');
 }
