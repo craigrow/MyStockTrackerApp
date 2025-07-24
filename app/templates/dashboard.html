@@ -901,6 +901,21 @@ function updateHoldingsTable(holdings) {
 
 // Log page load
 logActivity('Dashboard loaded');
+
+// Load detailed holdings data immediately
+{% if current_portfolio %}
+fetch(`/api/dashboard-holdings-data/{{ current_portfolio.id }}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateHoldingsTable(data.holdings);
+            logActivity('Detailed holdings data loaded');
+        }
+    })
+    .catch(error => {
+        logActivity('Error loading detailed holdings: ' + error.message);
+    });
+{% endif %}
 </script>
 {% endblock %}
 {% if progressive_loading %}
@@ -1155,19 +1170,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start loading initial data
     loadInitialData();
     
-    // Also load detailed holdings immediately for better UX
-    {% if current_portfolio %}
-    setTimeout(() => {
-        loadDetailedHoldings();
-    }, 500);
-    {% endif %}
-    
-    // Also load detailed holdings immediately for better UX
-    {% if current_portfolio %}
-    setTimeout(() => {
-        loadDetailedHoldings();
-    }, 500);
-    {% endif %}
+
 });
 </script>
 {% else %}
