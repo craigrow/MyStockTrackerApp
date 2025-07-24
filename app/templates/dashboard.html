@@ -1154,6 +1154,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Start loading initial data
     loadInitialData();
+    
+    // Also load detailed holdings immediately for better UX
+    {% if current_portfolio %}
+    setTimeout(() => {
+        loadDetailedHoldings();
+    }, 500);
+    {% endif %}
+    
+    // Also load detailed holdings immediately for better UX
+    {% if current_portfolio %}
+    setTimeout(() => {
+        loadDetailedHoldings();
+    }, 500);
+    {% endif %}
 });
 </script>
 {% else %}
