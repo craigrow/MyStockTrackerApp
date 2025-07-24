@@ -507,6 +507,11 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     tickers = list(set(t.ticker for t in transactions))
     print(f"[CHART] Portfolio {portfolio_id} has {len(tickers)} unique tickers")
     
+    # Memory optimization: If too many tickers, return simplified chart data
+    if len(tickers) > 20:
+        print(f"[CHART] Too many tickers ({len(tickers)}), returning simplified chart data")
+        return generate_simplified_chart_data(portfolio_id, portfolio_service, price_service)
+    
     # Get date range from first transaction to today
     end_date = date.today()
     start_date = min(t.date for t in transactions)
@@ -516,16 +521,27 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
     etf_tickers = ['VOO', 'QQQ']
     all_tickers = tickers + etf_tickers
     
-    # Batch fetch price histories for all tickers
+    # Batch fetch price histories for all tickers with memory optimization
     print(f"[API] Batch fetching price histories for {len(all_tickers)} tickers...")
     price_histories = {}
-    for ticker in all_tickers:
-        try:
-            price_histories[ticker] = get_ticker_price_dataframe(ticker, start_date, end_date)
-        except Exception as e:
-            print(f"[CHART] Error fetching price history for {ticker}: {e}")
-            # Create an empty DataFrame as a placeholder
-            price_histories[ticker] = pd.DataFrame(columns=['Close'])
+    
+    # Process tickers in smaller batches to avoid memory issues
+    batch_size = 5
+    for i in range(0, len(all_tickers), batch_size):
+        ticker_batch = all_tickers[i:i+batch_size]
+        print(f"[API] Processing batch {i//batch_size + 1}/{(len(all_tickers) + batch_size - 1)//batch_size}: {ticker_batch}")
+        
+        for ticker in ticker_batch:
+            try:
+                price_histories[ticker] = get_ticker_price_dataframe(ticker, start_date, end_date)
+            except Exception as e:
+                print(f"[CHART] Error fetching price history for {ticker}: {e}")
+                # Create an empty DataFrame as a placeholder
+                price_histories[ticker] = pd.DataFrame(columns=['Close'])
+        
+        # Small delay between batches to avoid overwhelming the API
+        import time
+        time.sleep(0.1)
     
     # Generate date range
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -1399,6 +1415,69 @@ def calculate_minimal_portfolio_stats(portfolio, portfolio_service, price_servic
             'portfolio_daily_change': 0,
             'portfolio_daily_dollar_change': 0
         }
+
+def generate_simplified_chart_data(portfolio_id, portfolio_service, price_service):
+    """Generate simplified chart data for portfolios with many tickers to avoid memory issues"""
+    try:
+        transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
+        
+        if not transactions:
+            return {
+                'dates': [],
+                'portfolio_values': [],
+                'voo_values': [],
+                'qqq_values': []
+            }
+        
+        # Get date range from first transaction to today
+        end_date = date.today()
+        start_date = min(t.date for t in transactions)
+        
+        # Generate monthly data points instead of daily to reduce memory usage
+        dates = []
+        portfolio_values = []
+        voo_values = []
+        qqq_values = []
+        
+        # Generate monthly date points
+        current_date = start_date
+        while current_date <= end_date:
+            dates.append(current_date.strftime('%Y-%m-%d'))
+            
+            # Calculate portfolio value on this date
+            portfolio_value = calculate_portfolio_value_on_date(portfolio_id, current_date, portfolio_service, price_service)
+            portfolio_values.append(portfolio_value)
+            
+            # Calculate ETF values
+            voo_value = calculate_etf_value_on_date(portfolio_id, current_date, 'VOO', portfolio_service)
+            qqq_value = calculate_etf_value_on_date(portfolio_id, current_date, 'QQQ', portfolio_service)
+            
+            voo_values.append(voo_value)
+            qqq_values.append(qqq_value)
+            
+            # Move to next month
+            if current_date.month == 12:
+                current_date = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                current_date = current_date.replace(month=current_date.month + 1)
+        
+        print(f"[CHART] Generated simplified chart data with {len(dates)} monthly points")
+        
+        return {
+            'dates': dates,
+            'portfolio_values': portfolio_values,
+            'voo_values': voo_values,
+            'qqq_values': qqq_values
+        }
+    except Exception as e:
+        print(f"[CHART] Error in simplified chart generation: {e}")
+        return {
+            'dates': [],
+            'portfolio_values': [],
+            'voo_values': [],
+            'qqq_values': []
+        }
+
 @main_blueprint.route('/api/dashboard-initial-data/<portfolio_id>')
 def get_dashboard_initial_data(portfolio_id):
     """Get minimal initial data for dashboard fast loading"""
