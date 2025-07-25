@@ -332,142 +332,26 @@
 {% endblock %}
 
 {% block scripts %}
+{% if current_portfolio %}
 <script>
-// MINIMAL TEST - This should always work
-alert('MINIMAL TEST: JavaScript is working');
-</script>
-
-<script>
-alert('Script block starting - JavaScript is working');
-
-// Initialize chart data placeholders (always available)
-let originalChartData = {
-    dates: [],
-    portfolio_values: [],
-    voo_values: [],
-    qqq_values: []
+// Store original chart data with fallbacks for missing data
+const originalChartData = {
+    dates: {{ chart_data.dates | tojson if chart_data and chart_data.dates else '[]' }},
+    portfolio_values: {{ chart_data.portfolio_values | tojson if chart_data and chart_data.portfolio_values else '[]' }},
+    voo_values: {{ chart_data.voo_values | tojson if chart_data and chart_data.voo_values else '[]' }},
+    qqq_values: {{ chart_data.qqq_values | tojson if chart_data and chart_data.qqq_values else '[]' }}
 };
 
-// Function to load chart data asynchronously (always available)
-function loadChartData(portfolioId) {
-    alert('loadChartData called with portfolio: ' + portfolioId);
-    logActivity('Loading chart data asynchronously...');
-    
-    // Show loading indicator in chart
-    const chartCanvas = document.getElementById('portfolioChart');
-    if (chartCanvas) {
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'chartLoading';
-        loadingDiv.style.position = 'absolute';
-        loadingDiv.style.top = '50%';
-        loadingDiv.style.left = '50%';
-        loadingDiv.style.transform = 'translate(-50%, -50%)';
-        loadingDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><div class="mt-2">Loading chart data...</div>';
-        chartCanvas.parentNode.style.position = 'relative';
-        chartCanvas.parentNode.appendChild(loadingDiv);
-    }
-    
-    // Fetch chart data from API
-    logActivity('Fetching chart data from /api/chart-data/' + portfolioId);
-    fetch(`/api/chart-data/${portfolioId}`)
-        .then(response => {
-            logActivity('Chart API response received, status: ' + response.status);
-            return response.json();
-        })
-        .then(data => {
-            logActivity('Chart data parsed: ' + JSON.stringify(data).substring(0, 100) + '...');
-            
-            // Check if this is placeholder data
-            if (data.placeholder) {
-                logActivity('Received placeholder data, starting chart generation progress monitoring...');
-                // Don't remove loading indicator yet, start progress monitoring
-                checkChartProgress(portfolioId);
-                return;
-            }
-            
-            // Remove loading indicator
-            const loadingDiv = document.getElementById('chartLoading');
-            if (loadingDiv) loadingDiv.remove();
-            
-            // Update chart data
-            originalChartData = {
-                dates: data.dates || [],
-                portfolio_values: data.portfolio_values || [],
-                voo_values: data.voo_values || [],
-                qqq_values: data.qqq_values || []
-            };
-            
-            // Initialize chart with the loaded data
-            initializeChart();
-            
-            // Log chart data status
-            if (originalChartData.dates.length === 0) {
-                console.warn('Chart data is empty. This may indicate an issue with data generation.');
-                logActivity('Warning: Chart data is empty. Please check server logs for details.');
-            } else {
-                console.log(`Chart data loaded with ${originalChartData.dates.length} data points`);
-                logActivity(`Chart data loaded with ${originalChartData.dates.length} data points`);
-            }
-            
-            // Apply any saved filters
-            applyChartFilters();
-        })
-        .catch(error => {
-            console.error('Error loading chart data:', error);
-            logActivity('Error loading chart data: ' + error.message);
-            
-            // Remove loading indicator
-            const loadingDiv = document.getElementById('chartLoading');
-            if (loadingDiv) loadingDiv.remove();
-            
-            // Initialize chart with empty data
-            initializeChart();
-        });
+// Log chart data status
+if (originalChartData.dates.length === 0) {
+    console.warn('Chart data is empty. This may indicate an issue with data generation.');
+    logActivity('Warning: Chart data is empty. Please check server logs for details.');
+} else {
+    console.log(`Chart data loaded with ${originalChartData.dates.length} data points`);
 }
-
-// Function to check chart generation progress (always available)
-function checkChartProgress(portfolioId) {
-    fetch(`/api/chart-generator-progress/${portfolioId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (data.status === 'completed' && data.chart_data) {
-                    // Chart data is ready, update the chart
-                    originalChartData = data.chart_data;
-                    
-                    // Remove loading indicator
-                    const loadingDiv = document.getElementById('chartLoading');
-                    if (loadingDiv) loadingDiv.remove();
-                    
-                    initializeChart();
-                    applyChartFilters();
-                    logActivity('Chart data generation completed');
-                } else if (data.status === 'generating') {
-                    // Chart data is still generating, check again in a moment
-                    setTimeout(() => checkChartProgress(portfolioId), 2000);
-                    logActivity('Chart data still generating...');
-                } else {
-                    logActivity('Chart generation status: ' + data.status);
-                    // Check again in a moment for other statuses
-                    setTimeout(() => checkChartProgress(portfolioId), 2000);
-                }
-            }
-        })
-        .catch(error => {
-            logActivity('Error checking chart progress: ' + error.message);
-            // Try again after a delay
-            setTimeout(() => checkChartProgress(portfolioId), 5000);
-        });
-}
-
-// Function to initialize chart
-function initializeChart() {
 
 const ctx = document.getElementById('portfolioChart').getContext('2d');
-let chart;
-
-// Initialize the chart with data
-window.portfolioChart = new Chart(ctx, {
+const chart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: originalChartData.dates,
@@ -599,6 +483,11 @@ document.addEventListener('DOMContentLoaded', function() {
             filterChartByDate(this.value);
             localStorage.removeItem('chartPeriod'); // Clear period preference for custom date
         });
+        
+        if (originalChartData.dates.length > 0) {
+            dateInput.min = originalChartData.dates[0];
+            dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
+        }
     }
     
     // Add radio button event listeners
@@ -609,29 +498,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-});
-
-// Activity logging
-function logActivity(message) {
-    const logContent = document.getElementById('logContent');
-    if (logContent) {
-        const timestamp = new Date().toLocaleTimeString();
-        logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-        const activityLog = document.getElementById('activityLog');
-        if (activityLog) {
-            activityLog.scrollTop = activityLog.scrollHeight;
-        }
-    }
-}
-
-// Function to apply saved chart filters
-function applyChartFilters() {
-    // Set date input min/max if we have data
-    const dateInput = document.getElementById('chartStartDate');
-    if (dateInput && originalChartData.dates.length > 0) {
-        dateInput.min = originalChartData.dates[0];
-        dateInput.max = originalChartData.dates[originalChartData.dates.length - 1];
-    }
     
     // Restore saved preferences
     const savedPeriod = localStorage.getItem('chartPeriod');
@@ -646,31 +512,37 @@ function applyChartFilters() {
         }
     } else if (savedStartDate) {
         // Restore custom date
-        if (dateInput) {
-            dateInput.value = savedStartDate;
-            filterChartByDate(savedStartDate);
-            document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
-        }
+        dateInput.value = savedStartDate;
+        filterChartByDate(savedStartDate);
+        document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
     }
+});
+
+// Activity logging
+function logActivity(message) {
+    const logContent = document.getElementById('logContent');
+    const timestamp = new Date().toLocaleTimeString();
+    logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+    document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
 }
 
-// Start loading chart data asynchronously
-logActivity('Loading portfolio performance chart asynchronously...');
-</script>
-
-{% if current_portfolio %}
-<script>
-logActivity('About to call loadChartData for portfolio {{ current_portfolio.id }}');
-alert('About to call loadChartData');
-loadChartData('{{ current_portfolio.id }}');
-</script>
-{% else %}
-<script>
-alert('No current portfolio found');
+// Log chart loading
+logActivity('Loading portfolio performance chart...');
+logActivity('Chart loaded successfully');
 </script>
 {% endif %}
 
 <script>
+// Always show activity log
+function logActivity(message) {
+    const logContent = document.getElementById('logContent');
+    if (logContent) {
+        const timestamp = new Date().toLocaleTimeString();
+        logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
+    }
+}
+
 // Price update progress tracking
 let updateCheckInterval;
 
@@ -962,261 +834,5 @@ function updateHoldingsTable(holdings) {
 
 // Log page load
 logActivity('Dashboard loaded');
-alert('JavaScript is working - check for chart canvas');
-const testCanvas = document.getElementById('portfolioChart');
-if (testCanvas) {
-    alert('Chart canvas found');
-    // Call loadChartData directly here
-    {% if current_portfolio %}
-    alert('Portfolio found: {{ current_portfolio.id }}');
-    alert('About to call loadChartData function...');
-    if (typeof loadChartData === 'function') {
-        alert('loadChartData function exists, calling it now...');
-        try {
-            loadChartData('{{ current_portfolio.id }}');
-            alert('loadChartData call completed successfully');
-        } catch (error) {
-            alert('Error calling loadChartData: ' + error.message);
-            console.error('loadChartData error:', error);
-        }
-    } else {
-        alert('ERROR: loadChartData function is not defined! Type: ' + typeof loadChartData);
-    }
-    {% else %}
-    alert('No portfolio found');
-    {% endif %}
-} else {
-    alert('Chart canvas NOT found');
-}
-
-// Load detailed holdings data immediately
-{% if current_portfolio %}
-fetch(`/api/dashboard-holdings-data/{{ current_portfolio.id }}`)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateHoldingsTable(data.holdings);
-            logActivity('Detailed holdings data loaded');
-        }
-    })
-    .catch(error => {
-        logActivity('Error loading detailed holdings: ' + error.message);
-    });
-
-// Check for updated chart data every 10 seconds
-setInterval(() => {
-    fetch(`/api/chart-data/{{ current_portfolio.id }}`)
-        .then(response => response.json())
-        .then(data => {
-            if (!data.placeholder && originalChartData.dates.length <= 2) {
-                originalChartData = {
-                    dates: data.dates || [],
-                    portfolio_values: data.portfolio_values || [],
-                    voo_values: data.voo_values || [],
-                    qqq_values: data.qqq_values || []
-                };
-                
-                if (originalChartData.dates.length > 0) {
-                    initializeChart();
-                    logActivity('Chart updated with real data (' + originalChartData.dates.length + ' points)');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error checking for chart updates:', error);
-        });
-}, 10000);
-{% endif %}
 </script>
 {% endblock %}
-{% if progressive_loading %}
-<script>
-// Progressive loading functionality
-document.addEventListener('DOMContentLoaded', function() {
-    logActivity('Progressive loading enabled');
-    
-    // Function to load initial dashboard data
-    function loadInitialData() {
-        logActivity('Loading initial dashboard data...');
-        
-        {% if current_portfolio %}
-        fetch(`/api/dashboard-initial-data/{{ current_portfolio.id }}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update portfolio stats
-                    updatePortfolioStats(data.portfolio_stats);
-                    
-                    // Update holdings table
-                    updateHoldingsTable(data.holdings);
-                    
-                    // Update recent transactions
-                    updateRecentTransactions(data.recent_transactions);
-                    
-                    // Update data warnings
-                    updateDataWarnings(data.data_warnings, data.stale_tickers);
-                    
-                    logActivity('Initial dashboard data loaded');
-                    
-                    // Load detailed holdings after a short delay
-                    setTimeout(loadDetailedHoldings, 1000);
-                    
-                    // Load chart data
-                    loadChartData('{{ current_portfolio.id }}');
-                }
-            })
-            .catch(error => {
-                logActivity('Error loading initial data: ' + error.message);
-            });
-        {% endif %}
-    }
-    
-    // Function to load detailed holdings data
-    function loadDetailedHoldings() {
-        logActivity('Loading detailed holdings data...');
-        
-        {% if current_portfolio %}
-        fetch(`/api/dashboard-holdings-data/{{ current_portfolio.id }}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateHoldingsTable(data.holdings);
-                    logActivity('Detailed holdings data loaded');
-                }
-            })
-            .catch(error => {
-                logActivity('Error loading detailed holdings: ' + error.message);
-            });
-        {% endif %}
-    }
-    
-    // Function to update portfolio stats
-    function updatePortfolioStats(stats) {
-        if (!stats) return;
-        
-        // Update portfolio value card
-        document.querySelector('.card.bg-primary .mb-1').textContent = `$${formatNumber(stats.current_value)}`;
-        document.querySelector('.card.bg-primary small:nth-of-type(1)').textContent = 
-            `VOO: $${formatNumber(stats.voo_equivalent)} ($${formatNumber(stats.current_value - stats.voo_equivalent)})`;
-        document.querySelector('.card.bg-primary small:nth-of-type(2)').textContent = 
-            `QQQ: $${formatNumber(stats.qqq_equivalent)} ($${formatNumber(stats.current_value - stats.qqq_equivalent)})`;
-        
-        // Update gain/loss card
-        document.querySelector('.card.bg-success .mb-1').textContent = 
-            `$${formatNumber(stats.total_gain_loss)} (${formatNumber(stats.gain_loss_percentage)}%)`;
-        document.querySelector('.card.bg-success small:nth-of-type(1)').textContent = 
-            `VOO: $${formatNumber(stats.voo_gain_loss)} (${formatNumber(stats.voo_gain_loss_percentage)}%)`;
-        document.querySelector('.card.bg-success small:nth-of-type(2)').textContent = 
-            `QQQ: $${formatNumber(stats.qqq_gain_loss)} (${formatNumber(stats.qqq_gain_loss_percentage)}%)`;
-        
-        // Update daily change card
-        const dailyChangeSign = stats.portfolio_daily_change >= 0 ? '+' : '';
-        const dailyDollarSign = stats.portfolio_daily_dollar_change >= 0 ? '+' : '';
-        document.querySelector('.card.bg-info .mb-1').textContent = 
-            `$${dailyDollarSign}${formatNumber(stats.portfolio_daily_dollar_change)} (${dailyChangeSign}${formatNumber(stats.portfolio_daily_change)}%)`;
-        
-        const vooChangeSign = stats.voo_daily_change >= 0 ? '+' : '';
-        const vooDollarSign = stats.voo_daily_dollar_change >= 0 ? '+' : '';
-        document.querySelector('.card.bg-info small:nth-of-type(1)').textContent = 
-            `VOO: $${vooDollarSign}${formatNumber(stats.voo_daily_dollar_change)} (${vooChangeSign}${formatNumber(stats.voo_daily_change)}%)`;
-        
-        const qqqChangeSign = stats.qqq_daily_change >= 0 ? '+' : '';
-        const qqqDollarSign = stats.qqq_daily_dollar_change >= 0 ? '+' : '';
-        document.querySelector('.card.bg-info small:nth-of-type(2)').textContent = 
-            `QQQ: $${qqqDollarSign}${formatNumber(stats.qqq_daily_dollar_change)} (${qqqChangeSign}${formatNumber(stats.qqq_daily_change)}%)`;
-    }
-    
-    // Function to update recent transactions
-    function updateRecentTransactions(transactions) {
-        if (!transactions || !transactions.length) return;
-        
-        const container = document.querySelector('.card-header:contains("Recent Activity") + .card-body');
-        if (!container) return;
-        
-        let html = '';
-        transactions.forEach(transaction => {
-            const date = new Date(transaction.date).toLocaleDateString();
-            const badgeClass = transaction.transaction_type === 'BUY' ? 'success' : 'danger';
-            
-            html += `
-            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
-                <div>
-                    <strong>${transaction.ticker}</strong>
-                    <small class="text-muted d-block">${date}</small>
-                </div>
-                <div class="text-end">
-                    <span class="badge bg-${badgeClass}">
-                        ${transaction.transaction_type}
-                    </span>
-                    <small class="d-block">$${formatNumber(transaction.total_value)}</small>
-                </div>
-            </div>
-            `;
-        });
-        
-        html += `
-        <div class="text-center mt-3">
-            <a href="/portfolio/transactions" class="btn btn-sm btn-outline-primary">View All</a>
-        </div>
-        `;
-        
-        container.innerHTML = html;
-    }
-    
-    // Function to update data warnings
-    function updateDataWarnings(warnings, stale_tickers) {
-        if (!warnings || !warnings.length) return;
-        
-        const container = document.querySelector('.row.mb-3:first-of-type .col-12');
-        if (!container) return;
-        
-        let html = '';
-        warnings.forEach(warning => {
-            html += `
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <i class="fas fa-exclamation-triangle me-2"></i>${warning}
-                    </div>
-                    ${stale_tickers && stale_tickers.length ? `
-                    <button class="btn btn-sm btn-outline-warning" onclick="refreshPrices()">
-                        <i class="fas fa-sync-alt me-1"></i>Refresh Prices
-                    </button>
-                    ` : ''}
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-    }
-    
-    // Function to check chart generation progress
-    function checkChartProgress(portfolioId) {
-        fetch(`/api/chart-generator-progress/${portfolioId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.status === 'completed' && data.chart_data) {
-                        // Chart data is ready, update the chart
-                        originalChartData = data.chart_data;
-                        initializeChart();
-                        applyChartFilters();
-                        logActivity('Chart data generation completed');
-                    } else if (data.status === 'generating') {
-                        // Chart data is still generating, check again in a moment
-                        setTimeout(() => checkChartProgress(portfolioId), 2000);
-                        logActivity('Chart data still generating...');
-                    }
-                }
-            })
-            .catch(error => {
-                logActivity('Error checking chart progress: ' + error.message);
-            });
-    }
-    
-</script>
-{% endif %}
-
-<!-- Template syntax fix applied -->
