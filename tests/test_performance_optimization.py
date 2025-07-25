@@ -127,12 +127,16 @@ class TestBatchApiProcessing:
             assert 'AAPL' in result
             assert 'MSFT' in result
     
-    @patch('yfinance.download')
-    def test_batch_fetch_prices_error_handling(self, mock_download, price_service, app):
+    @patch('app.services.price_service.yf.Ticker')
+    @patch('app.services.price_service.yf.download')
+    def test_batch_fetch_prices_error_handling(self, mock_download, mock_ticker, price_service, app):
         """Test batch_fetch_prices handles errors gracefully."""
         with app.app_context():
             # Mock yfinance.download to raise an exception
             mock_download.side_effect = Exception("API rate limit exceeded")
+            
+            # Mock yfinance.Ticker to also raise an exception (for fallback)
+            mock_ticker.side_effect = Exception("API rate limit exceeded")
             
             # Call the batch_fetch_prices method
             tickers = ['AAPL', 'MSFT', 'GOOGL']

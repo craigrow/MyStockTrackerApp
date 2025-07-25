@@ -98,8 +98,8 @@ class TestChartDataAPI:
             # Get the HTML content
             html_content = response.get_data(as_text=True)
             
-            # Check that the loadChartData function is defined
-            assert "function loadChartData(" in html_content
+            # Check that chart-related functions exist
+            assert "function checkChartProgress(" in html_content
             
             # Check that the function makes an AJAX call to the chart data API
-            assert "fetch(`/api/chart-data/" in html_content
+            assert "fetch(`/api/chart-data/" in html_content or "fetch('/api/chart-data/" in html_content

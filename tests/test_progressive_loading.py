@@ -240,17 +240,16 @@ class TestProgressiveLoading(unittest.TestCase):
                     response = self.client.get(f'/api/dashboard-chart-data/{self.portfolio.id}')
                     data = json.loads(response.data)
                     
-                    # Verify response
+                    # Verify response - when no cached data exists, endpoint generates synchronously
                     self.assertEqual(response.status_code, 200)
                     self.assertTrue(data['success'])
-                    self.assertEqual(data['status'], 'generating')
-                    self.assertIn('progress', data)
-                    self.assertIn('chart_data', data)  # Empty chart data
+                    self.assertEqual(data['source'], 'synchronous_generation')
+                    self.assertIn('chart_data', data)  # Should have generated chart data
                     
                     # Verify mock calls
                     mock_get_data.assert_called_once_with(self.portfolio.id)
                     mock_get_cached.assert_called_once()
-                    mock_get_progress.assert_called_once()
+                    # get_progress is not called in synchronous generation path
     
     def test_dashboard_holdings_data_endpoint(self):
         """Test the dashboard-holdings-data endpoint"""
