@@ -16,21 +16,24 @@ class TestBatchAPIProcessing(unittest.TestCase):
     @patch('app.services.price_service.yf.download')
     def test_batch_fetch_current_prices(self, mock_download):
         """Test batch fetching of current prices"""
-        # Mock the yfinance download response
-        mock_data = pd.DataFrame({
+        # Mock the yfinance download response for single ticker
+        mock_single_data = pd.DataFrame({
             'Close': [150.0, 151.0]
         }, index=[datetime.now() - timedelta(days=1), datetime.now()])
         
-        # For multiple tickers, yfinance returns a different structure
+        # For multiple tickers, yfinance returns a MultiIndex DataFrame
         mock_multi_data = pd.DataFrame()
         for ticker in self.test_tickers:
-            mock_multi_data[ticker, 'Close'] = [150.0, 151.0]
+            mock_multi_data[(ticker, 'Close')] = [150.0, 151.0]
         mock_multi_data.index = [datetime.now() - timedelta(days=1), datetime.now()]
         
+        # Create the proper MultiIndex structure
+        mock_multi_data.columns = pd.MultiIndex.from_tuples(mock_multi_data.columns)
+        
         # Set up the mock to return different data based on input
-        def side_effect(*args, **kwargs):
-            if len(kwargs.get('tickers', '').split()) == 1:
-                return mock_data
+        def side_effect(tickers, **kwargs):
+            if isinstance(tickers, str) or len(tickers) == 1:
+                return mock_single_data
             else:
                 return mock_multi_data
                 
@@ -63,12 +66,34 @@ class TestBatchAPIProcessing(unittest.TestCase):
     @patch('app.services.price_service.yf.download')
     def test_fallback_batch_fetch(self, mock_download):
         """Test fallback batch fetching with smaller batches"""
-        # Mock the yfinance download response
-        mock_data = pd.DataFrame({
+        # Mock the yfinance download response for single ticker batches
+        mock_single_data = pd.DataFrame({
             'Close': [150.0, 151.0]
         }, index=[datetime.now() - timedelta(days=1), datetime.now()])
         
-        mock_download.return_value = mock_data
+        # Mock for 2-ticker batches
+        mock_double_data = pd.DataFrame()
+        mock_double_data[('AAPL', 'Close')] = [150.0, 151.0]
+        mock_double_data[('MSFT', 'Close')] = [150.0, 151.0]
+        mock_double_data.index = [datetime.now() - timedelta(days=1), datetime.now()]
+        mock_double_data.columns = pd.MultiIndex.from_tuples(mock_double_data.columns)
+        
+        # Set up the mock to return appropriate data based on batch size
+        def side_effect(tickers, **kwargs):
+            if isinstance(tickers, str):
+                return mock_single_data
+            elif len(tickers) == 1:
+                return mock_single_data
+            else:
+                # Create mock data for the specific tickers in this batch
+                mock_batch_data = pd.DataFrame()
+                for ticker in tickers:
+                    mock_batch_data[(ticker, 'Close')] = [150.0, 151.0]
+                mock_batch_data.index = [datetime.now() - timedelta(days=1), datetime.now()]
+                mock_batch_data.columns = pd.MultiIndex.from_tuples(mock_batch_data.columns)
+                return mock_batch_data
+                
+        mock_download.side_effect = side_effect
         
         # Test fallback with batch size of 2
         result = self.price_service._fallback_batch_fetch(self.test_tickers, batch_size=2)
@@ -85,7 +110,7 @@ class TestBatchAPIProcessing(unittest.TestCase):
     def test_batch_fetch_prices_historical(self, mock_download):
         """Test batch fetching of historical prices"""
         # Mock the yfinance download response for historical data
-        mock_data = pd.DataFrame({
+        mock_single_data = pd.DataFrame({
             'Close': [140.0, 145.0, 150.0]
         }, index=[
             datetime.now() - timedelta(days=3),
@@ -93,22 +118,33 @@ class TestBatchAPIProcessing(unittest.TestCase):
             datetime.now() - timedelta(days=1)
         ])
         
-        # For multiple tickers, yfinance returns a different structure
+        # For multiple tickers, yfinance returns a MultiIndex DataFrame
         mock_multi_data = pd.DataFrame()
         for ticker in self.test_tickers:
-            mock_multi_data[ticker, 'Close'] = [140.0, 145.0, 150.0]
+            mock_multi_data[(ticker, 'Close')] = [140.0, 145.0, 150.0]
         mock_multi_data.index = [
             datetime.now() - timedelta(days=3),
             datetime.now() - timedelta(days=2),
             datetime.now() - timedelta(days=1)
         ]
+        mock_multi_data.columns = pd.MultiIndex.from_tuples(mock_multi_data.columns)
         
         # Set up the mock to return different data based on input
-        def side_effect(*args, **kwargs):
-            if len(kwargs.get('tickers', '').split()) == 1:
-                return mock_data
+        def side_effect(tickers, **kwargs):
+            if isinstance(tickers, str) or len(tickers) == 1:
+                return mock_single_data
             else:
-                return mock_multi_data
+                # Create mock data for the specific tickers in this batch
+                mock_batch_data = pd.DataFrame()
+                for ticker in tickers:
+                    mock_batch_data[(ticker, 'Close')] = [140.0, 145.0, 150.0]
+                mock_batch_data.index = [
+                    datetime.now() - timedelta(days=3),
+                    datetime.now() - timedelta(days=2),
+                    datetime.now() - timedelta(days=1)
+                ]
+                mock_batch_data.columns = pd.MultiIndex.from_tuples(mock_batch_data.columns)
+                return mock_batch_data
                 
         mock_download.side_effect = side_effect
         

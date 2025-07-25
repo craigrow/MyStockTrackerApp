@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock, call
 from app.services.background_tasks import BackgroundPriceUpdater, BackgroundChartGenerator
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import asyncio
 
 class TestBackgroundPriceUpdater(unittest.TestCase):
@@ -28,30 +28,34 @@ class TestBackgroundPriceUpdater(unittest.TestCase):
         # Mock _check_stale_data
         self.updater._check_stale_data = MagicMock(return_value=['AAPL'])
         
-        # Mock _process_queue_batch to avoid threading
-        self.updater._process_queue_batch = MagicMock()
-        
-        # Call the method
-        self.updater.queue_portfolio_price_updates(self.portfolio_id)
-        
-        # Verify portfolio_service.get_current_holdings was called
-        self.updater.portfolio_service.get_current_holdings.assert_called_once_with(self.portfolio_id)
-        
-        # Verify _check_stale_data was called with the right tickers
-        self.updater._check_stale_data.assert_called_once_with(['AAPL', 'MSFT', 'GOOGL', 'VOO', 'QQQ'])
-        
-        # Verify update_queue contains all tickers
-        self.assertEqual(set(self.updater.update_queue), {'AAPL', 'MSFT', 'GOOGL', 'VOO', 'QQQ'})
-        
-        # Verify progress was updated
-        self.assertEqual(self.updater.progress['status'], 'queued')
-        self.assertEqual(self.updater.progress['total'], 5)
-        self.assertEqual(self.updater.progress['current'], 0)
-        self.assertEqual(self.updater.progress['stale_data'], ['AAPL'])
-        self.assertEqual(self.updater.progress['portfolio_id'], self.portfolio_id)
-        
-        # Verify _process_queue_batch was called
-        self.updater._process_queue_batch.assert_called_once()
+        # Mock threading to avoid actual background processing
+        with patch('threading.Thread') as mock_thread:
+            # Mock the thread instance
+            mock_thread_instance = MagicMock()
+            mock_thread.return_value = mock_thread_instance
+            
+            # Call the method
+            self.updater.queue_portfolio_price_updates(self.portfolio_id)
+            
+            # Verify portfolio_service.get_current_holdings was called
+            self.updater.portfolio_service.get_current_holdings.assert_called_once_with(self.portfolio_id)
+            
+            # Verify _check_stale_data was called with the right tickers
+            self.updater._check_stale_data.assert_called_once_with(['AAPL', 'MSFT', 'GOOGL', 'VOO', 'QQQ'])
+            
+            # Verify update_queue contains all tickers
+            self.assertEqual(set(self.updater.update_queue), {'AAPL', 'MSFT', 'GOOGL', 'VOO', 'QQQ'})
+            
+            # Verify progress was updated
+            self.assertEqual(self.updater.progress['status'], 'queued')
+            self.assertEqual(self.updater.progress['total'], 5)
+            self.assertEqual(self.updater.progress['current'], 0)
+            self.assertEqual(self.updater.progress['stale_data'], ['AAPL'])
+            self.assertEqual(self.updater.progress['portfolio_id'], self.portfolio_id)
+            
+            # Verify thread was created and started
+            mock_thread.assert_called_once()
+            mock_thread_instance.start.assert_called_once()
     
     def test_process_queue_batch(self):
         """Test batch processing of price updates"""
@@ -146,18 +150,21 @@ class TestBackgroundChartGenerator(unittest.TestCase):
     
     def test_generate_chart_data(self):
         """Test queuing chart data generation"""
-        # Mock _generate_chart_data to avoid threading
-        self.generator._generate_chart_data = MagicMock()
-        
-        # Call the method
-        result = self.generator.generate_chart_data(self.portfolio_id)
-        
-        # Verify result
-        self.assertTrue(result)
-        
-        # Verify progress was updated
-        self.assertEqual(self.generator.progress['status'], 'queued')
-        self.assertEqual(self.generator.progress['portfolio_id'], self.portfolio_id)
+        # Mock the database access functions to avoid application context issues
+        with patch('app.views.main.get_cached_chart_data', return_value=None):
+            with patch('app.views.main.get_last_market_date', return_value=date.today()):
+                # Mock _generate_chart_data to avoid threading
+                self.generator._generate_chart_data = MagicMock()
+                
+                # Call the method
+                result = self.generator.generate_chart_data(self.portfolio_id)
+                
+                # Verify result
+                self.assertTrue(result)
+                
+                # Verify progress was updated
+                self.assertEqual(self.generator.progress['status'], 'queued')
+                self.assertEqual(self.generator.progress['portfolio_id'], self.portfolio_id)
         self.assertIn('start_time', self.generator.progress)
         
         # Verify _generate_chart_data was called
@@ -186,14 +193,19 @@ class TestBackgroundChartGenerator(unittest.TestCase):
             'start_time': datetime.utcnow() - timedelta(hours=1)
         }
         
-        # Call the method
-        result = self.generator.generate_chart_data(self.portfolio_id)
-        
-        # Verify result
-        self.assertTrue(result)
-        
-        # Verify _generate_chart_data was not called (using cached data)
-        self.assertFalse(hasattr(self.generator, '_generate_chart_data'))
+        # Mock the database access functions
+        with patch('app.views.main.get_cached_chart_data', return_value=None):
+            with patch('app.views.main.get_last_market_date', return_value=date.today()):
+                # Mock _generate_chart_data to track if it's called
+                with patch.object(self.generator, '_generate_chart_data') as mock_generate:
+                    # Call the method
+                    result = self.generator.generate_chart_data(self.portfolio_id)
+                    
+                    # Verify result
+                    self.assertTrue(result)
+                    
+                    # Verify _generate_chart_data was not called (using cached data)
+                    mock_generate.assert_not_called()
     
     @patch('app.views.main.generate_chart_data')
     def test_generate_chart_data_implementation(self, mock_generate_chart_data):
