@@ -138,7 +138,8 @@ def get_minimal_holdings(portfolio_id, portfolio_service, price_service):
 # app.register_blueprint(api_blueprint)
 
 def calculate_etf_performance_simple(ticker, transactions, etf_ticker, price_service):
-    """Calculate ETF performance using cached prices only"""
+    """Calculate ETF performance using cached historical prices"""
+    from app.models.price import PriceHistory
     from datetime import timedelta
     
     try:
@@ -161,14 +162,18 @@ def calculate_etf_performance_simple(ticker, transactions, etf_ticker, price_ser
         
         avg_purchase_date = date(1970, 1, 1) + timedelta(days=int(weighted_date_sum))
         
-        # Get ETF prices using cached data
-        etf_purchase_price = price_service.get_current_price(etf_ticker, use_stale=True)  # Use cached
+        # Get ETF price on average purchase date from cached data
+        etf_purchase_price = PriceHistory.query.filter(
+            PriceHistory.ticker == etf_ticker,
+            PriceHistory.date <= avg_purchase_date
+        ).order_by(PriceHistory.date.desc()).first()
+        
+        # Get current ETF price
         current_etf_price = price_service.get_current_price(etf_ticker, use_stale=True)
         
-        if etf_purchase_price and current_etf_price and etf_purchase_price > 0:
-            # Simple approximation - in real implementation would use historical prices
-            performance = ((current_etf_price - etf_purchase_price) / etf_purchase_price) * 100
-            return round(performance * 0.8, 2)  # Approximate historical performance
+        if etf_purchase_price and current_etf_price and etf_purchase_price.close_price > 0:
+            performance = ((current_etf_price - etf_purchase_price.close_price) / etf_purchase_price.close_price) * 100
+            return round(performance, 2)
         
         return 0
         
