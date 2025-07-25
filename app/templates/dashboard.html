@@ -369,6 +369,15 @@ function loadChartData(portfolioId) {
         })
         .then(data => {
             logActivity('Chart data parsed: ' + JSON.stringify(data).substring(0, 100) + '...');
+            
+            // Check if this is placeholder data
+            if (data.placeholder) {
+                logActivity('Received placeholder data, starting chart generation progress monitoring...');
+                // Don't remove loading indicator yet, start progress monitoring
+                checkChartProgress(portfolioId);
+                return;
+            }
+            
             // Remove loading indicator
             const loadingDiv = document.getElementById('chartLoading');
             if (loadingDiv) loadingDiv.remove();
@@ -406,6 +415,41 @@ function loadChartData(portfolioId) {
             
             // Initialize chart with empty data
             initializeChart();
+        });
+}
+
+// Function to check chart generation progress (always available)
+function checkChartProgress(portfolioId) {
+    fetch(`/api/chart-generator-progress/${portfolioId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.status === 'completed' && data.chart_data) {
+                    // Chart data is ready, update the chart
+                    originalChartData = data.chart_data;
+                    
+                    // Remove loading indicator
+                    const loadingDiv = document.getElementById('chartLoading');
+                    if (loadingDiv) loadingDiv.remove();
+                    
+                    initializeChart();
+                    applyChartFilters();
+                    logActivity('Chart data generation completed');
+                } else if (data.status === 'generating') {
+                    // Chart data is still generating, check again in a moment
+                    setTimeout(() => checkChartProgress(portfolioId), 2000);
+                    logActivity('Chart data still generating...');
+                } else {
+                    logActivity('Chart generation status: ' + data.status);
+                    // Check again in a moment for other statuses
+                    setTimeout(() => checkChartProgress(portfolioId), 2000);
+                }
+            }
+        })
+        .catch(error => {
+            logActivity('Error checking chart progress: ' + error.message);
+            // Try again after a delay
+            setTimeout(() => checkChartProgress(portfolioId), 5000);
         });
 }
 
