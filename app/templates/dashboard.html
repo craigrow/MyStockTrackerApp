@@ -420,9 +420,43 @@ const chart = new Chart(ctx, {
 // Start checking for fresh chart data in the background
 {% if current_portfolio %}
 setTimeout(() => {
-    logActivity('Starting background chart data refresh...');
-    checkChartProgress('{{ current_portfolio.id }}');
-}, 2000); // Wait 2 seconds before starting to check
+    logActivity('Checking for fresh chart data...');
+    
+    // Call the chart data API directly
+    fetch('/api/chart-data/{{ current_portfolio.id }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.dates && data.dates.length > 2) {
+                // We got real chart data, update the chart
+                originalChartData.dates = data.dates || [];
+                originalChartData.portfolio_values = data.portfolio_values || [];
+                originalChartData.voo_values = data.voo_values || [];
+                originalChartData.qqq_values = data.qqq_values || [];
+                
+                // Update the chart
+                chart.data.labels = originalChartData.dates;
+                chart.data.datasets[0].data = originalChartData.portfolio_values;
+                chart.data.datasets[1].data = originalChartData.voo_values;
+                chart.data.datasets[2].data = originalChartData.qqq_values;
+                chart.update();
+                
+                // Apply any saved filters
+                applyChartFilters();
+                
+                logActivity(`Chart updated with ${originalChartData.dates.length} data points`);
+                console.log(`Chart updated with ${originalChartData.dates.length} data points`);
+            } else if (data.placeholder) {
+                logActivity('Still using placeholder data, will try progress monitoring...');
+                // Fall back to progress monitoring
+                checkChartProgress('{{ current_portfolio.id }}');
+            }
+        })
+        .catch(error => {
+            logActivity('Error loading chart data: ' + error.message);
+            // Fall back to progress monitoring
+            checkChartProgress('{{ current_portfolio.id }}');
+        });
+}, 1000); // Wait 1 second before checking
 {% endif %}
 
 // Chart date filtering functionality
