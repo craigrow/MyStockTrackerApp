@@ -333,6 +333,8 @@
 
 {% block scripts %}
 <script>
+alert('Script block starting - JavaScript is working');
+
 // Initialize chart data placeholders (always available)
 let originalChartData = {
     dates: [],
@@ -607,9 +609,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // Activity logging
 function logActivity(message) {
     const logContent = document.getElementById('logContent');
-    const timestamp = new Date().toLocaleTimeString();
-    logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-    document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
+    if (logContent) {
+        const timestamp = new Date().toLocaleTimeString();
+        logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        const activityLog = document.getElementById('activityLog');
+        if (activityLog) {
+            activityLog.scrollTop = activityLog.scrollHeight;
+        }
+    }
 }
 
 // Function to apply saved chart filters
