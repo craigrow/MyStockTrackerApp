@@ -32,7 +32,7 @@ class TestProgressiveLoading(unittest.TestCase):
                 ticker='AAPL',
                 transaction_type='BUY',
                 shares=10,
-                price=150.0,
+                price_per_share=150.0,
                 total_value=1500.0
             ),
             Transaction(
@@ -41,7 +41,7 @@ class TestProgressiveLoading(unittest.TestCase):
                 ticker='MSFT',
                 transaction_type='BUY',
                 shares=5,
-                price=300.0,
+                price_per_share=300.0,
                 total_value=1500.0
             )
         ]

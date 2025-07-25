@@ -38,7 +38,7 @@ class TestDashboardLoadTime(unittest.TestCase):
                         ticker=tickers[i],
                         transaction_type='BUY',
                         shares=1,
-                        price=100.0,
+                        price_per_share=100.0,
                         total_value=100.0
                     )
                 )

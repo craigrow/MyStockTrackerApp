@@ -14,6 +14,9 @@ import threading
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Progressive loading configuration
+progressive_loading = True
+
 main_blueprint = Blueprint('main', __name__)
 
 @main_blueprint.route('/api/price-update-progress')
@@ -1721,7 +1724,7 @@ def get_dashboard_initial_data(portfolio_id):
                     'ticker': t.ticker,
                     'transaction_type': t.transaction_type,
                     'shares': t.shares,
-                    'price': t.price,
+                    'price': t.price_per_share,
                     'total_value': t.total_value
                 })
         except Exception as e:

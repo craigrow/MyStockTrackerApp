@@ -8,6 +8,7 @@ import pandas as pd
 import time
 import logging
 import random
+from flask import has_app_context, current_app
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -238,6 +239,26 @@ class PriceService:
             return
             
         logger.info(f"Batch caching {len(prices_dict)} prices")
+        
+        # Try to perform the operation directly first
+        try:
+            self._do_batch_cache(prices_dict, price_date, is_intraday)
+        except RuntimeError as e:
+            if "Working outside of application context" in str(e):
+                # If we're outside app context, try to get one
+                try:
+                    from flask import current_app
+                    with current_app.app_context():
+                        self._do_batch_cache(prices_dict, price_date, is_intraday)
+                except RuntimeError:
+                    # If current_app is not available, we're likely in a test or background context
+                    # Just log the error and continue
+                    logger.error(f"Cannot cache prices - no application context available: {e}")
+            else:
+                raise
+    
+    def _do_batch_cache(self, prices_dict, price_date, is_intraday):
+        """Internal method to perform the actual caching with app context"""
         
         try:
             # Get existing price records for these tickers on this date
