@@ -148,13 +148,13 @@ def refresh_all_prices(portfolio_id):
 
 @main_blueprint.route('/api/chart-data/<portfolio_id>')
 def get_chart_data(portfolio_id):
-    """Get chart data - generate synchronously for reliability"""
+    """Get chart data using cached prices only - fast load"""
     try:
         portfolio_service = PortfolioService()
         price_service = PriceService()
         
-        # Generate chart data directly
-        chart_data = generate_chart_data(portfolio_id, portfolio_service, price_service)
+        # Generate chart with cached data only for fast response
+        chart_data = generate_simplified_chart_data(portfolio_id, portfolio_service, price_service)
         
         return jsonify(chart_data)
     except Exception as e:
@@ -164,6 +164,32 @@ def get_chart_data(portfolio_id):
             'portfolio_values': [],
             'voo_values': [],
             'qqq_values': [],
+            'error': str(e)
+        }), 500
+
+@main_blueprint.route('/api/refresh-chart-data/<portfolio_id>')
+def refresh_chart_data(portfolio_id):
+    """Refresh chart data after price updates - called after background price refresh"""
+    try:
+        portfolio_service = PortfolioService()
+        price_service = PriceService()
+        
+        # Generate fresh chart data with updated prices
+        chart_data = generate_simplified_chart_data(portfolio_id, portfolio_service, price_service)
+        
+        # Cache the updated chart data
+        market_date = get_last_market_date()
+        cache_chart_data(portfolio_id, market_date, chart_data)
+        
+        return jsonify({
+            'success': True,
+            'chart_data': chart_data,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error refreshing chart data: {e}")
+        return jsonify({
+            'success': False,
             'error': str(e)
         }), 500
 
@@ -1426,7 +1452,9 @@ def calculate_minimal_portfolio_stats(portfolio, portfolio_service, price_servic
         }
 
 def generate_simplified_chart_data(portfolio_id, portfolio_service, price_service):
-    """Generate minimal chart data with just start and end points"""
+    """Generate chart data using only cached prices - fast and reliable"""
+    from app.models.price import PriceHistory
+    
     try:
         transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
         
@@ -1438,52 +1466,83 @@ def generate_simplified_chart_data(portfolio_id, portfolio_service, price_servic
                 'qqq_values': []
             }
         
-        # Get current portfolio stats for end values
-        current_stats = calculate_minimal_portfolio_stats(
-            portfolio_service.get_portfolio(portfolio_id), 
-            portfolio_service, 
-            price_service
-        )
-        
-        # Create minimal chart with just 3 points: start, middle, end
+        # Get date range
         start_date = min(t.date for t in transactions)
         end_date = date.today()
         
-        # Calculate middle date
-        days_diff = (end_date - start_date).days
-        middle_date = start_date + timedelta(days=days_diff // 2)
+        # Get all unique tickers
+        tickers = list(set(t.ticker for t in transactions))
+        all_tickers = tickers + ['VOO', 'QQQ']
         
-        dates = [
-            start_date.strftime('%Y-%m-%d'),
-            middle_date.strftime('%Y-%m-%d'),
-            end_date.strftime('%Y-%m-%d')
-        ]
+        # Get all cached prices in one query
+        cached_prices = PriceHistory.query.filter(
+            PriceHistory.ticker.in_(all_tickers),
+            PriceHistory.date >= start_date,
+            PriceHistory.date <= end_date
+        ).all()
         
-        # Simple linear progression for demo
-        total_invested = sum(t.total_value for t in transactions if t.transaction_type == 'BUY')
-        current_value = current_stats.get('current_value', total_invested)
-        voo_value = current_stats.get('voo_equivalent', total_invested)
-        qqq_value = current_stats.get('qqq_equivalent', total_invested)
+        # Organize prices by ticker and date
+        price_data = {}
+        for price in cached_prices:
+            if price.ticker not in price_data:
+                price_data[price.ticker] = {}
+            price_data[price.ticker][price.date] = price.close_price
         
-        portfolio_values = [
-            total_invested * 0.8,  # Start lower
-            total_invested * 0.9,  # Middle
-            current_value          # Current actual value
-        ]
+        # Generate weekly data points
+        dates = []
+        portfolio_values = []
+        voo_values = []
+        qqq_values = []
         
-        voo_values = [
-            total_invested * 0.85,
-            total_invested * 0.92,
-            voo_value
-        ]
+        cumulative_holdings = {}
+        cumulative_voo_shares = 0
+        cumulative_qqq_shares = 0
         
-        qqq_values = [
-            total_invested * 0.82,
-            total_invested * 0.95,
-            qqq_value
-        ]
+        current_date = start_date
+        while current_date <= end_date:
+            # Process transactions up to this date
+            for transaction in transactions:
+                if transaction.date <= current_date:
+                    if transaction.ticker not in cumulative_holdings:
+                        cumulative_holdings[transaction.ticker] = 0
+                    
+                    if transaction.transaction_type == 'BUY':
+                        cumulative_holdings[transaction.ticker] += transaction.shares
+                        
+                        # Calculate ETF shares using cached prices
+                        voo_price = get_cached_price('VOO', transaction.date, price_data)
+                        if voo_price:
+                            cumulative_voo_shares += transaction.total_value / voo_price
+                        
+                        qqq_price = get_cached_price('QQQ', transaction.date, price_data)
+                        if qqq_price:
+                            cumulative_qqq_shares += transaction.total_value / qqq_price
+                    elif transaction.transaction_type == 'SELL':
+                        cumulative_holdings[transaction.ticker] -= transaction.shares
+            
+            # Calculate values using cached prices only
+            portfolio_value = 0
+            for ticker, shares in cumulative_holdings.items():
+                if shares > 0:
+                    price = get_cached_price(ticker, current_date, price_data)
+                    if price:
+                        portfolio_value += shares * price
+            
+            voo_price = get_cached_price('VOO', current_date, price_data)
+            voo_value = cumulative_voo_shares * voo_price if voo_price else 0
+            
+            qqq_price = get_cached_price('QQQ', current_date, price_data)
+            qqq_value = cumulative_qqq_shares * qqq_price if qqq_price else 0
+            
+            dates.append(current_date.strftime('%Y-%m-%d'))
+            portfolio_values.append(portfolio_value)
+            voo_values.append(voo_value)
+            qqq_values.append(qqq_value)
+            
+            # Move to next week
+            current_date += timedelta(days=7)
         
-        print(f"[CHART] Generated minimal chart data with {len(dates)} points")
+        print(f"[CHART] Generated cached chart data with {len(dates)} points")
         
         return {
             'dates': dates,
@@ -1492,13 +1551,139 @@ def generate_simplified_chart_data(portfolio_id, portfolio_service, price_servic
             'qqq_values': qqq_values
         }
     except Exception as e:
-        print(f"[CHART] Error in simplified chart generation: {e}")
+        print(f"[CHART] Error in chart generation: {e}")
         return {
             'dates': [],
             'portfolio_values': [],
             'voo_values': [],
             'qqq_values': []
         }
+
+def generate_cached_chart_data(portfolio_id, portfolio_service, price_service):
+    """Generate chart data using only cached prices from database"""
+    from app.models.price import PriceHistory
+    
+    transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
+    
+    if not transactions:
+        return {
+            'dates': [],
+            'portfolio_values': [],
+            'voo_values': [],
+            'qqq_values': []
+        }
+    
+    # Get date range
+    start_date = min(t.date for t in transactions)
+    end_date = date.today()
+    
+    # Get all unique tickers
+    tickers = list(set(t.ticker for t in transactions))
+    etf_tickers = ['VOO', 'QQQ']
+    all_tickers = tickers + etf_tickers
+    
+    # Get all cached prices for all tickers in one query
+    cached_prices = PriceHistory.query.filter(
+        PriceHistory.ticker.in_(all_tickers),
+        PriceHistory.date >= start_date,
+        PriceHistory.date <= end_date
+    ).all()
+    
+    # Organize prices by ticker and date
+    price_data = {}
+    for price in cached_prices:
+        if price.ticker not in price_data:
+            price_data[price.ticker] = {}
+        price_data[price.ticker][price.date] = price.close_price
+    
+    # Generate weekly data points for performance
+    dates = []
+    portfolio_values = []
+    voo_values = []
+    qqq_values = []
+    
+    # Track cumulative holdings and ETF shares
+    cumulative_holdings = {}
+    cumulative_voo_shares = 0
+    cumulative_qqq_shares = 0
+    
+    # Generate data points weekly for better performance
+    current_date = start_date
+    while current_date <= end_date:
+        date_str = current_date.strftime('%Y-%m-%d')
+        dates.append(date_str)
+        
+        # Process transactions up to this date
+        for transaction in transactions:
+            if transaction.date <= current_date:
+                if transaction.ticker not in cumulative_holdings:
+                    cumulative_holdings[transaction.ticker] = 0
+                
+                if transaction.transaction_type == 'BUY':
+                    cumulative_holdings[transaction.ticker] += transaction.shares
+                    
+                    # Calculate ETF shares using cached prices
+                    voo_price = get_cached_price('VOO', transaction.date, price_data)
+                    if voo_price:
+                        cumulative_voo_shares += transaction.total_value / voo_price
+                    
+                    qqq_price = get_cached_price('QQQ', transaction.date, price_data)
+                    if qqq_price:
+                        cumulative_qqq_shares += transaction.total_value / qqq_price
+                elif transaction.transaction_type == 'SELL':
+                    cumulative_holdings[transaction.ticker] -= transaction.shares
+        
+        # Calculate portfolio value using cached prices
+        portfolio_value = 0
+        for ticker, shares in cumulative_holdings.items():
+            if shares > 0:
+                price = get_cached_price(ticker, current_date, price_data)
+                if price:
+                    portfolio_value += shares * price
+        
+        # Calculate ETF values using cached prices
+        voo_price = get_cached_price('VOO', current_date, price_data)
+        voo_value = cumulative_voo_shares * voo_price if voo_price else 0
+        
+        qqq_price = get_cached_price('QQQ', current_date, price_data)
+        qqq_value = cumulative_qqq_shares * qqq_price if qqq_price else 0
+        
+        portfolio_values.append(portfolio_value)
+        voo_values.append(voo_value)
+        qqq_values.append(qqq_value)
+        
+        # Move to next week
+        current_date += timedelta(days=7)
+    
+    return {
+        'dates': dates,
+        'portfolio_values': portfolio_values,
+        'voo_values': voo_values,
+        'qqq_values': qqq_values
+    }
+
+def get_cached_price(ticker, target_date, price_data):
+    """Get cached price for a ticker on a specific date, using closest previous date if needed"""
+    if ticker not in price_data:
+        return None
+    
+    ticker_prices = price_data[ticker]
+    
+    # Try exact date first
+    if target_date in ticker_prices:
+        return ticker_prices[target_date]
+    
+    # Find closest previous date
+    closest_date = None
+    for price_date in ticker_prices.keys():
+        if price_date <= target_date:
+            if closest_date is None or price_date > closest_date:
+                closest_date = price_date
+    
+    if closest_date:
+        return ticker_prices[closest_date]
+    
+    return None
 
 @main_blueprint.route('/api/dashboard-initial-data/<portfolio_id>')
 def get_dashboard_initial_data(portfolio_id):
