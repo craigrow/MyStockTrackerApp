@@ -148,9 +148,9 @@ def refresh_all_prices(portfolio_id):
 
 @main_blueprint.route('/api/chart-data/<portfolio_id>')
 def get_chart_data(portfolio_id):
-    """Get cached chart data or generate with timeout"""
+    """Get cached chart data or return placeholder - never block"""
     try:
-        # Check for cached chart data first
+        # Always check for cached chart data first
         market_date = get_last_market_date()
         cached_data = get_cached_chart_data(portfolio_id, market_date)
         
@@ -158,36 +158,58 @@ def get_chart_data(portfolio_id):
             logger.info(f"Returning cached chart data with {len(cached_data.get('dates', []))} points")
             return jsonify(cached_data)
         
-        # Try to generate real chart data with a timeout
+        # No good cached data - return placeholder and start background generation
         portfolio_service = PortfolioService()
-        price_service = PriceService()
         transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
         
         if transactions:
-            try:
-                # Try to generate real chart data quickly
-                logger.info(f"Attempting to generate chart data for portfolio {portfolio_id}")
-                chart_data = generate_chart_data(portfolio_id, portfolio_service, price_service)
-                
-                # Cache the generated data
-                cache_chart_data(portfolio_id, market_date, chart_data)
-                
-                logger.info(f"Successfully generated chart data with {len(chart_data.get('dates', []))} points")
-                return jsonify(chart_data)
-                
-            except Exception as e:
-                logger.error(f"Chart generation failed, using placeholder: {e}")
-                # Fall back to placeholder data
-                start_date = min(t.date for t in transactions).strftime('%Y-%m-%d')
-                end_date = date.today().strftime('%Y-%m-%d')
-                
-                return jsonify({
-                    'dates': [start_date, end_date],
-                    'portfolio_values': [1000, 1200],
-                    'voo_values': [1000, 1100],
-                    'qqq_values': [1000, 1150],
-                    'placeholder': True
-                })
+            start_date = min(t.date for t in transactions).strftime('%Y-%m-%d')
+            end_date = date.today().strftime('%Y-%m-%d')
+            
+            # Start background generation (non-blocking)
+            import threading
+            from flask import current_app
+            def generate_in_background():
+                with current_app.app_context():
+                    try:
+                        logger.info(f"Starting background chart generation for portfolio {portfolio_id}")
+                        price_service = PriceService()
+                        chart_data = generate_chart_data(portfolio_id, portfolio_service, price_service)
+                        cache_chart_data(portfolio_id, market_date, chart_data)
+                        
+                        # Store in chart generator for progress API
+                        chart_generator.chart_data[portfolio_id] = chart_data
+                        chart_generator.progress = {
+                            'status': 'completed',
+                            'portfolio_id': portfolio_id,
+                            'completion_time': datetime.utcnow()
+                        }
+                        logger.info(f"Background chart generation completed with {len(chart_data.get('dates', []))} points")
+                    except Exception as e:
+                        logger.error(f"Background chart generation failed: {e}")
+                        chart_generator.progress = {
+                            'status': 'failed',
+                            'portfolio_id': portfolio_id,
+                            'error': str(e)
+                        }
+            
+            # Set generating status
+            chart_generator.progress = {
+                'status': 'generating',
+                'portfolio_id': portfolio_id,
+                'start_time': datetime.utcnow()
+            }
+            
+            threading.Thread(target=generate_in_background, daemon=True).start()
+            
+            # Return placeholder immediately
+            return jsonify({
+                'dates': [start_date, end_date],
+                'portfolio_values': [1000, 1200],
+                'voo_values': [1000, 1100],
+                'qqq_values': [1000, 1150],
+                'placeholder': True
+            })
         
         return jsonify({
             'dates': [],
