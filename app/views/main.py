@@ -1539,8 +1539,8 @@ def generate_simplified_chart_data(portfolio_id, portfolio_service, price_servic
             voo_values.append(voo_value)
             qqq_values.append(qqq_value)
             
-            # Move to next week
-            current_date += timedelta(days=7)
+            # Move to next day
+            current_date += timedelta(days=1)
         
         print(f"[CHART] Generated cached chart data with {len(dates)} points")
         
