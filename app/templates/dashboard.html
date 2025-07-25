@@ -967,7 +967,19 @@ if (testCanvas) {
     // Call loadChartData directly here
     {% if current_portfolio %}
     alert('Portfolio found: {{ current_portfolio.id }}');
-    loadChartData('{{ current_portfolio.id }}');
+    alert('About to call loadChartData function...');
+    if (typeof loadChartData === 'function') {
+        alert('loadChartData function exists, calling it now...');
+        try {
+            loadChartData('{{ current_portfolio.id }}');
+            alert('loadChartData call completed successfully');
+        } catch (error) {
+            alert('Error calling loadChartData: ' + error.message);
+            console.error('loadChartData error:', error);
+        }
+    } else {
+        alert('ERROR: loadChartData function is not defined! Type: ' + typeof loadChartData);
+    }
     {% else %}
     alert('No portfolio found');
     {% endif %}
