@@ -312,7 +312,39 @@ def dashboard():
             from flask import current_app
             def generate_with_context():
                 with current_app.app_context():
-                    chart_generator.generate_chart_data(current_portfolio.id)
+                    try:
+                        logger.info(f"Starting background chart generation for portfolio {current_portfolio.id}")
+                        # Use the direct generation function instead of chart_generator
+                        fresh_chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
+                        
+                        # Cache the generated data
+                        market_date = get_last_market_date()
+                        cache_chart_data(current_portfolio.id, market_date, fresh_chart_data)
+                        
+                        # Also store in chart generator for API access
+                        chart_generator.chart_data[current_portfolio.id] = fresh_chart_data
+                        chart_generator.progress = {
+                            'status': 'completed',
+                            'portfolio_id': current_portfolio.id,
+                            'completion_time': datetime.utcnow()
+                        }
+                        
+                        logger.info(f"Background chart generation completed with {len(fresh_chart_data.get('dates', []))} data points")
+                    except Exception as e:
+                        logger.error(f"Background chart generation failed: {e}")
+                        chart_generator.progress = {
+                            'status': 'failed',
+                            'portfolio_id': current_portfolio.id,
+                            'error': str(e)
+                        }
+            
+            # Set status to generating before starting thread
+            chart_generator.progress = {
+                'status': 'generating',
+                'portfolio_id': current_portfolio.id,
+                'start_time': datetime.utcnow()
+            }
+            
             threading.Thread(target=generate_with_context, daemon=True).start()
             
             # Try to get cached chart data for immediate display
