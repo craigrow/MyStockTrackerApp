@@ -659,16 +659,6 @@ alert('No current portfolio found');
 {% endif %}
 
 <script>
-// Always show activity log
-function logActivity(message) {
-    const logContent = document.getElementById('logContent');
-    if (logContent) {
-        const timestamp = new Date().toLocaleTimeString();
-        logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-        document.getElementById('activityLog').scrollTop = document.getElementById('activityLog').scrollHeight;
-    }
-}
-
 // Price update progress tracking
 let updateCheckInterval;
 
