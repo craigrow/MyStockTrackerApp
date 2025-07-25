@@ -218,22 +218,6 @@ def get_chart_data(portfolio_id):
             'qqq_values': []
         })
     except Exception as e:
-            
-            return jsonify({
-                'dates': [start_date, end_date],
-                'portfolio_values': [1000, 1200],
-                'voo_values': [1000, 1100],
-                'qqq_values': [1000, 1150],
-                'placeholder': True
-            })
-        
-        return jsonify({
-            'dates': [],
-            'portfolio_values': [],
-            'voo_values': [],
-            'qqq_values': []
-        })
-    except Exception as e:
         return jsonify({
             'dates': [],
             'portfolio_values': [],
@@ -348,44 +332,8 @@ def dashboard():
             
             stale_tickers = stale_holdings + stale_etfs  # Keep for button logic
             
-            # Queue background chart data generation (non-blocking)
-            from flask import current_app
-            def generate_with_context():
-                with current_app.app_context():
-                    try:
-                        logger.info(f"Starting background chart generation for portfolio {current_portfolio.id}")
-                        # Use the direct generation function instead of chart_generator
-                        fresh_chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
-                        
-                        # Cache the generated data
-                        market_date = get_last_market_date()
-                        cache_chart_data(current_portfolio.id, market_date, fresh_chart_data)
-                        
-                        # Also store in chart generator for API access
-                        chart_generator.chart_data[current_portfolio.id] = fresh_chart_data
-                        chart_generator.progress = {
-                            'status': 'completed',
-                            'portfolio_id': current_portfolio.id,
-                            'completion_time': datetime.utcnow()
-                        }
-                        
-                        logger.info(f"Background chart generation completed with {len(fresh_chart_data.get('dates', []))} data points")
-                    except Exception as e:
-                        logger.error(f"Background chart generation failed: {e}")
-                        chart_generator.progress = {
-                            'status': 'failed',
-                            'portfolio_id': current_portfolio.id,
-                            'error': str(e)
-                        }
-            
-            # Set status to generating before starting thread
-            chart_generator.progress = {
-                'status': 'generating',
-                'portfolio_id': current_portfolio.id,
-                'start_time': datetime.utcnow()
-            }
-            
-            threading.Thread(target=generate_with_context, daemon=True).start()
+            # Don't start background generation from dashboard route to prevent blocking
+            # Chart generation will be triggered by the frontend API calls
             
             # Try to get cached chart data for immediate display
             try:
