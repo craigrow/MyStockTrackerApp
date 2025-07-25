@@ -315,6 +315,14 @@ def dashboard():
                     chart_generator.generate_chart_data(current_portfolio.id)
             threading.Thread(target=generate_with_context, daemon=True).start()
             
+            # TEMPORARY FIX: Generate chart data synchronously for devQ
+            try:
+                chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
+                logger.info(f"Generated chart data with {len(chart_data.get('dates', []))} data points")
+            except Exception as chart_error:
+                logger.error(f"Error generating chart data: {chart_error}")
+                chart_data = {'dates': [], 'portfolio_values': [], 'voo_values': [], 'qqq_values': []}
+            
         except Exception as e:
             logger.error(f"Error in dashboard route: {e}")
             import traceback
