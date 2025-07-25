@@ -332,9 +332,8 @@
 {% endblock %}
 
 {% block scripts %}
-{% if current_portfolio %}
 <script>
-// Initialize chart data placeholders
+// Initialize chart data placeholders (always available)
 let originalChartData = {
     dates: [],
     portfolio_values: [],
@@ -342,7 +341,7 @@ let originalChartData = {
     qqq_values: []
 };
 
-// Function to load chart data asynchronously
+// Function to load chart data asynchronously (always available)
 function loadChartData(portfolioId) {
     alert('loadChartData called with portfolio: ' + portfolioId);
     logActivity('Loading chart data asynchronously...');
@@ -601,13 +600,17 @@ function applyChartFilters() {
 
 // Start loading chart data asynchronously
 logActivity('Loading portfolio performance chart asynchronously...');
+</script>
+
 {% if current_portfolio %}
+<script>
 logActivity('About to call loadChartData for portfolio {{ current_portfolio.id }}');
 alert('About to call loadChartData');
 loadChartData('{{ current_portfolio.id }}');
+</script>
 {% else %}
+<script>
 alert('No current portfolio found');
-{% endif %}
 </script>
 {% endif %}
 
