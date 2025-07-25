@@ -1,0 +1,95 @@
+name: DevQ Pipeline
+
+on:
+  push:
+    branches: [ devQ ]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        python -m pytest --tb=short -q
+        
+    - name: Test coverage check
+      run: |
+        RESULT=$(python -m pytest --tb=no -q | tail -1)
+        if [[ $RESULT != *"passed"* ]] || [[ $RESULT == *"failed"* ]]; then
+          echo "Tests failed: $RESULT"
+          exit 1
+        fi
+        echo "All tests passed: $RESULT"
+
+  deploy-devq:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Deploy to DevQ Heroku
+      env:
+        HEROKU_API_KEY: ${{secrets.HEROKU_API_KEY}}
+      run: |
+        git remote add heroku-devq https://:${HEROKU_API_KEY}@git.heroku.com/mystocktrackerapp-devq.git
+        git push heroku-devq HEAD:main --force
+    
+    - name: Verify DevQ Deployment
+      continue-on-error: true
+      run: |
+        chmod +x scripts/verify_deployment.sh
+        ./scripts/verify_deployment.sh devq || echo "⚠️ Verification failed but deployment may still be successful - check manually"
+
+  promote-to-main:
+    needs: [test, deploy-devq]
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{secrets.GITHUB_TOKEN}}
+        persist-credentials: true
+    
+    - name: Merge devQ to main and deploy
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git checkout main
+        git pull origin main
+        git merge devQ --no-ff -m "Auto-merge devQ to main after UAT approval"
+        git push https://${{secrets.GITHUB_TOKEN}}@github.com/craigrow/MyStockTrackerApp.git main
+    
+    - name: Deploy to Production Heroku
+      env:
+        HEROKU_API_KEY: ${{secrets.HEROKU_API_KEY}}
+      run: |
+        git remote add heroku-prod https://:${HEROKU_API_KEY}@git.heroku.com/mystocktrackerapp-prod.git
+        git push heroku-prod HEAD:main --force
+    
+    - name: Verify Production Deployment
+      continue-on-error: true
+      run: |
+        chmod +x scripts/verify_deployment.sh
+        ./scripts/verify_deployment.sh prod || echo "⚠️ Verification failed but deployment may still be successful - check manually"
