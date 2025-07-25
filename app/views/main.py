@@ -315,13 +315,24 @@ def dashboard():
                     chart_generator.generate_chart_data(current_portfolio.id)
             threading.Thread(target=generate_with_context, daemon=True).start()
             
-            # TEMPORARY FIX: Generate chart data synchronously for devQ
+            # Try to get cached chart data for immediate display
             try:
-                chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
-                logger.info(f"Generated chart data with {len(chart_data.get('dates', []))} data points")
-            except Exception as chart_error:
-                logger.error(f"Error generating chart data: {chart_error}")
-                chart_data = {'dates': [], 'portfolio_values': [], 'voo_values': [], 'qqq_values': []}
+                market_date = get_last_market_date()
+                cached_chart_data = get_cached_chart_data(current_portfolio.id, market_date)
+                
+                if cached_chart_data and len(cached_chart_data.get('dates', [])) > 0:
+                    # Use cached data for fast loading
+                    chart_data = cached_chart_data
+                    logger.info(f"Using cached chart data with {len(chart_data.get('dates', []))} data points")
+                else:
+                    # No cached data available, use simplified data as placeholder
+                    logger.info("No cached chart data available, using simplified placeholder")
+                    chart_data = generate_simplified_chart_data(current_portfolio.id, portfolio_service, price_service)
+                    
+            except Exception as cache_error:
+                logger.error(f"Error accessing cached chart data: {cache_error}")
+                # Fallback to simplified data
+                chart_data = generate_simplified_chart_data(current_portfolio.id, portfolio_service, price_service)
             
         except Exception as e:
             logger.error(f"Error in dashboard route: {e}")
