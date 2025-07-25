@@ -146,22 +146,19 @@ class TestBatchApiProcessing:
             assert isinstance(result, dict)
             assert len(result) == 0
     
-    @patch('app.services.price_service.PriceService.batch_fetch_prices')
-    def test_batch_fetch_current_prices(self, mock_batch_fetch, price_service, app):
+    @patch('app.services.price_service.yf.download')
+    def test_batch_fetch_current_prices(self, mock_download, price_service, app):
         """Test batch_fetch_current_prices correctly processes multiple tickers."""
         with app.app_context():
-            # Mock the batch_fetch_prices response
-            mock_batch_fetch.return_value = {
-                'AAPL': pd.DataFrame({
-                    'Close': [151.0]
-                }, index=[date.today()]),
-                'MSFT': pd.DataFrame({
-                    'Close': [252.0]
-                }, index=[date.today()]),
-                'GOOGL': pd.DataFrame({
-                    'Close': [2820.0]
-                }, index=[date.today()])
-            }
+            # Mock the yfinance download response for multiple tickers
+            mock_data = pd.DataFrame()
+            mock_data[('AAPL', 'Close')] = [151.0]
+            mock_data[('MSFT', 'Close')] = [252.0]
+            mock_data[('GOOGL', 'Close')] = [2820.0]
+            mock_data.index = [datetime.now()]
+            mock_data.columns = pd.MultiIndex.from_tuples(mock_data.columns)
+            
+            mock_download.return_value = mock_data
             
             # Call the batch_fetch_current_prices method
             tickers = ['AAPL', 'MSFT', 'GOOGL']
@@ -173,8 +170,8 @@ class TestBatchApiProcessing:
             assert result['MSFT'] == 252.0
             assert result['GOOGL'] == 2820.0
             
-            # Verify batch_fetch_prices was called with the correct parameters
-            mock_batch_fetch.assert_called_once_with(tickers, period="1d")
+            # Verify yf.download was called with the correct parameters
+            mock_download.assert_called_once_with(tickers, period="1d", group_by='ticker', progress=False)
 
 class TestParallelProcessing:
     """Test parallel processing optimizations."""
@@ -221,29 +218,19 @@ class TestParallelProcessing:
             # Verify batch_fetch_prices was called for each chunk
             assert mock_batch_fetch.call_count > 0
     
-    @patch('app.services.price_service.PriceService.batch_fetch_prices')
-    def test_fetch_current_prices_parallel(self, mock_batch_fetch, price_service, app):
+    @patch('app.services.price_service.yf.download')
+    def test_fetch_current_prices_parallel(self, mock_download, price_service, app):
         """Test fetch_current_prices_parallel correctly processes multiple ticker chunks."""
         with app.app_context():
-            # Mock the batch_fetch_prices response for different chunks
-            def mock_batch_fetch_side_effect(tickers, **kwargs):
-                result = {}
-                for ticker in tickers:
-                    if ticker == 'AAPL':
-                        result[ticker] = pd.DataFrame({
-                            'Close': [151.0]
-                        }, index=[date.today()])
-                    elif ticker == 'MSFT':
-                        result[ticker] = pd.DataFrame({
-                            'Close': [252.0]
-                        }, index=[date.today()])
-                    elif ticker == 'GOOGL':
-                        result[ticker] = pd.DataFrame({
-                            'Close': [2820.0]
-                        }, index=[date.today()])
-                return result
+            # Mock the yfinance download response for multiple tickers
+            mock_data = pd.DataFrame()
+            mock_data[('AAPL', 'Close')] = [151.0]
+            mock_data[('MSFT', 'Close')] = [252.0]
+            mock_data[('GOOGL', 'Close')] = [2820.0]
+            mock_data.index = [datetime.now()]
+            mock_data.columns = pd.MultiIndex.from_tuples(mock_data.columns)
             
-            mock_batch_fetch.side_effect = mock_batch_fetch_side_effect
+            mock_download.return_value = mock_data
             
             # Call the fetch_current_prices_parallel method
             tickers = ['AAPL', 'MSFT', 'GOOGL']
