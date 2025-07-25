@@ -549,8 +549,7 @@ def generate_chart_data(portfolio_id, portfolio_service, price_service):
             'qqq_values': []
         }
     
-    # Always use simplified chart data for better performance
-    return generate_simplified_chart_data(portfolio_id, portfolio_service, price_service)
+    # Get date range from first transaction to today
     end_date = date.today()
     start_date = min(t.date for t in transactions)
     
