@@ -205,18 +205,20 @@ def dashboard():
     portfolio_service = PortfolioService()
     price_service = PriceService()
     
-    # Get all portfolios
-    portfolios = portfolio_service.get_all_portfolios()
-    
-    # Get current portfolio (from URL param or first available)
+    # Get current portfolio from context processor (via URL param or first available)
+    # The context processor handles portfolio selection logic
     portfolio_id = request.args.get('portfolio_id')
     current_portfolio = None
     
     if portfolio_id:
         current_portfolio = portfolio_service.get_portfolio(portfolio_id)
-    elif portfolios:
-        current_portfolio = portfolios[0]
-        portfolio_id = current_portfolio.id
+    
+    # If no valid portfolio from URL, let context processor handle default selection
+    if not current_portfolio:
+        portfolios = portfolio_service.get_all_portfolios()
+        if portfolios:
+            current_portfolio = portfolios[0]
+            portfolio_id = current_portfolio.id
     
     # Initialize data with empty placeholders
     portfolio_stats = {
@@ -347,8 +349,6 @@ def dashboard():
         chart_data = generate_chart_data(current_portfolio.id, portfolio_service, price_service)
     
     return render_template('dashboard.html',
-                         portfolios=portfolios,
-                         current_portfolio=current_portfolio,
                          portfolio_stats=portfolio_stats,
                          holdings=holdings,
                          recent_transactions=recent_transactions,
