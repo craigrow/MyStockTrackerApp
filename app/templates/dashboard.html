@@ -587,24 +587,47 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Restore saved preferences
+    // Apply saved chart filters (initial load)
+    applyChartFilters();
+});
+
+// Function to apply saved chart filters after data updates
+function applyChartFilters() {
+    // Ensure chart data is available before applying filters
+    if (!originalChartData || !originalChartData.dates || originalChartData.dates.length === 0) {
+        logActivity('Chart data not ready, skipping filter application');
+        return;
+    }
+    
     const savedPeriod = localStorage.getItem('chartPeriod');
     const savedStartDate = localStorage.getItem('chartStartDate');
     
     if (savedPeriod && savedPeriod !== 'all') {
-        // Restore radio button selection
+        // Restore radio button selection and apply the period filter
         const radioButton = document.getElementById(savedPeriod);
         if (radioButton) {
             radioButton.checked = true;
             setChartPeriod(savedPeriod);
+            logActivity(`Restored chart period: ${savedPeriod.toUpperCase()}`);
         }
     } else if (savedStartDate) {
-        // Restore custom date
-        dateInput.value = savedStartDate;
-        filterChartByDate(savedStartDate);
-        document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
+        // Restore custom date filter
+        const dateInput = document.getElementById('chartStartDate');
+        if (dateInput) {
+            dateInput.value = savedStartDate;
+            filterChartByDate(savedStartDate);
+            document.querySelectorAll('input[name="chartPeriod"]').forEach(radio => radio.checked = false);
+            logActivity(`Restored custom chart date: ${savedStartDate}`);
+        }
+    } else {
+        // No saved preferences, ensure "All" is selected
+        const allButton = document.getElementById('all');
+        if (allButton) {
+            allButton.checked = true;
+        }
+        logActivity('No saved chart preferences, showing all data');
     }
-});
+}
 
 // Activity logging
 function logActivity(message) {
