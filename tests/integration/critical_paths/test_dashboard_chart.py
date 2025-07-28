@@ -6,11 +6,11 @@ from tests.integration.utils.assertion_helpers import ChartAssertions, ResponseA
 from tests.integration.utils.mocks import IntegrationTestMocks
 
 
-@pytest.mark.fast
 @pytest.mark.database
 class TestDashboardChart:
     """Critical tests for dashboard and chart functionality that must never break."""
     
+    @pytest.mark.performance
     def test_dashboard_loads_with_working_chart(self, app, client):
         """CRITICAL: Dashboard must load with functional chart in <3 seconds.
         
@@ -86,6 +86,7 @@ class TestDashboardChart:
                 for mock in mocks:
                     mock.stop()
     
+    @pytest.mark.performance
     def test_chart_api_endpoints_performance(self, app, client):
         """CRITICAL: Chart-related API endpoints perform within requirements."""
         with app.app_context():
