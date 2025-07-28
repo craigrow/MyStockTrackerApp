@@ -76,6 +76,6 @@ class TestDashboardRefreshPrices:
             # Check that the response has the expected structure
             data = response.get_json()
             assert 'success' in data
-            assert 'holdings' in data
             assert 'refreshed_count' in data
             assert 'total_tickers' in data
+            assert 'timestamp' in data

@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Monitoring - MyStockTracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Performance Monitoring</h1>
+            <div>
+                <button id="refreshBtn" class="btn btn-outline-primary">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+                <button id="clearCacheBtn" class="btn btn-outline-danger ms-2">
+                    <i class="fas fa-trash me-1"></i>Clear Cache
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Query Cache</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Entries:</span>
+                    <span id="totalEntries">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Active Entries:</span>
+                    <span id="activeEntries">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Expired Entries:</span>
+                    <span id="expiredEntries">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Hit Rate:</span>
+                    <span id="hitRate">-</span>
+                </div>
+                <div class="progress mt-3" style="height: 5px;">
+                    <div id="cacheHitRateBar" class="progress-bar bg-success" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">API Performance</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Dashboard Initial Load:</span>
+                    <span id="dashboardInitialLoad">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Holdings Data:</span>
+                    <span id="holdingsData">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Chart Data:</span>
+                    <span id="chartData">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total API Calls:</span>
+                    <span id="totalApiCalls">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">System Resources</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>CPU Usage:</span>
+                    <span id="cpuUsage">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Memory Usage:</span>
+                    <span id="memoryUsage">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Database Connections:</span>
+                    <span id="dbConnections">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Active Sessions:</span>
+                    <span id="activeSessions">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Performance Metrics</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="timeRange" id="hour1" value="1h" checked>
+                    <label class="btn btn-outline-primary" for="hour1">1h</label>
+                    
+                    <input type="radio" class="btn-check" name="timeRange" id="hour6" value="6h">
+                    <label class="btn btn-outline-primary" for="hour6">6h</label>
+                    
+                    <input type="radio" class="btn-check" name="timeRange" id="day1" value="1d">
+                    <label class="btn btn-outline-primary" for="day1">1d</label>
+                    
+                    <input type="radio" class="btn-check" name="timeRange" id="week1" value="1w">
+                    <label class="btn btn-outline-primary" for="week1">1w</label>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent API Calls</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="apiCallsTable">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Endpoint</th>
+                                <th>Duration (ms)</th>
+                                <th>Status</th>
+                                <th>Cache</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- API calls will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Log -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">System Log</h5>
+            </div>
+            <div class="card-body">
+                <div id="systemLog" class="bg-dark text-light p-3 rounded" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.9em;">
+                    <div id="logContent">Ready...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize chart
+let performanceChart;
+
+// Function to initialize chart
+function initializeChart() {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // Will be populated with timestamps
+            datasets: [
+                {
+                    label: 'API Response Time (ms)',
+                    data: [], // Will be populated with response times
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                },
+                {
+                    label: 'Cache Hit Rate (%)',
+                    data: [], // Will be populated with cache hit rates
+                    borderColor: 'rgb(153, 102, 255)',
+                    backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Response Time (ms)'
+                    }
+                },
+                y1: {
+                    beginAtZero: true,
+                    max: 100,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Cache Hit Rate (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.datasetIndex === 0) {
+                                label += context.raw.toFixed(2) + ' ms';
+                            } else {
+                                label += context.raw.toFixed(2) + '%';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Function to update cache stats
+function updateCacheStats() {
+    fetch('/api/cache/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const stats = data.stats;
+                document.getElementById('totalEntries').textContent = stats.total_entries;
+                document.getElementById('activeEntries').textContent = stats.active_entries;
+                document.getElementById('expiredEntries').textContent = stats.expired_entries;
+                
+                // Calculate hit rate (mock data for now)
+                const hitRate = stats.active_entries > 0 ? 
+                    ((stats.active_entries / (stats.active_entries + stats.expired_entries)) * 100).toFixed(2) : 
+                    '0.00';
+                document.getElementById('hitRate').textContent = hitRate + '%';
+                document.getElementById('cacheHitRateBar').style.width = hitRate + '%';
+                
+                logActivity('Cache stats updated');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching cache stats:', error);
+            logActivity('Error fetching cache stats: ' + error.message);
+        });
+}
+
+// Function to clear cache
+function clearCache() {
+    fetch('/api/cache/clear', {
+        method: 'POST'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                logActivity('Cache cleared successfully');
+                updateCacheStats();
+            }
+        })
+        .catch(error => {
+            console.error('Error clearing cache:', error);
+            logActivity('Error clearing cache: ' + error.message);
+        });
+}
+
+// Function to measure API performance
+function measureApiPerformance() {
+    // Mock data for now - in a real implementation, this would be fetched from the server
+    document.getElementById('dashboardInitialLoad').textContent = '245 ms';
+    document.getElementById('holdingsData').textContent = '180 ms';
+    document.getElementById('chartData').textContent = '320 ms';
+    document.getElementById('totalApiCalls').textContent = '87';
+    
+    logActivity('API performance metrics updated');
+}
+
+// Function to update system resources
+function updateSystemResources() {
+    // Mock data for now - in a real implementation, this would be fetched from the server
+    document.getElementById('cpuUsage').textContent = '23%';
+    document.getElementById('memoryUsage').textContent = '512 MB';
+    document.getElementById('dbConnections').textContent = '5';
+    document.getElementById('activeSessions').textContent = '3';
+    
+    logActivity('System resource metrics updated');
+}
+
+// Function to update performance chart
+function updatePerformanceChart(timeRange) {
+    // Mock data for now - in a real implementation, this would be fetched from the server
+    const timestamps = [];
+    const responseTimes = [];
+    const hitRates = [];
+    
+    // Generate mock data based on time range
+    const now = new Date();
+    let dataPoints;
+    let interval;
+    
+    switch(timeRange) {
+        case '1h':
+            dataPoints = 60;
+            interval = 60 * 1000; // 1 minute
+            break;
+        case '6h':
+            dataPoints = 72;
+            interval = 5 * 60 * 1000; // 5 minutes
+            break;
+        case '1d':
+            dataPoints = 96;
+            interval = 15 * 60 * 1000; // 15 minutes
+            break;
+        case '1w':
+            dataPoints = 84;
+            interval = 2 * 60 * 60 * 1000; // 2 hours
+            break;
+        default:
+            dataPoints = 60;
+            interval = 60 * 1000; // 1 minute
+    }
+    
+    for (let i = dataPoints - 1; i >= 0; i--) {
+        const time = new Date(now - (i * interval));
+        timestamps.push(time.toLocaleTimeString());
+        
+        // Generate random response time between 100-500ms
+        const responseTime = Math.random() * 400 + 100;
+        responseTimes.push(responseTime);
+        
+        // Generate random hit rate between 70-95%
+        const hitRate = Math.random() * 25 + 70;
+        hitRates.push(hitRate);
+    }
+    
+    // Update chart data
+    performanceChart.data.labels = timestamps;
+    performanceChart.data.datasets[0].data = responseTimes;
+    performanceChart.data.datasets[1].data = hitRates;
+    performanceChart.update();
+    
+    logActivity(`Performance chart updated for ${timeRange} time range`);
+}
+
+// Function to update API calls table
+function updateApiCallsTable() {
+    // Mock data for now - in a real implementation, this would be fetched from the server
+    const apiCalls = [
+        { timestamp: '19:45:23', endpoint: '/api/dashboard-initial-data/1', duration: 245, status: 200, cache: 'HIT' },
+        { timestamp: '19:45:24', endpoint: '/api/dashboard-holdings-data/1', duration: 180, status: 200, cache: 'HIT' },
+        { timestamp: '19:45:25', endpoint: '/api/dashboard-chart-data/1', duration: 320, status: 200, cache: 'MISS' },
+        { timestamp: '19:44:12', endpoint: '/api/refresh-holdings/1', duration: 412, status: 200, cache: 'MISS' },
+        { timestamp: '19:43:45', endpoint: '/api/chart-generator-progress/1', duration: 95, status: 200, cache: 'HIT' }
+    ];
+    
+    const tbody = document.querySelector('#apiCallsTable tbody');
+    tbody.innerHTML = '';
+    
+    apiCalls.forEach(call => {
+        const row = document.createElement('tr');
+        
+        const timestampCell = document.createElement('td');
+        timestampCell.textContent = call.timestamp;
+        row.appendChild(timestampCell);
+        
+        const endpointCell = document.createElement('td');
+        endpointCell.textContent = call.endpoint;
+        row.appendChild(endpointCell);
+        
+        const durationCell = document.createElement('td');
+        durationCell.textContent = call.duration;
+        row.appendChild(durationCell);
+        
+        const statusCell = document.createElement('td');
+        statusCell.textContent = call.status;
+        statusCell.className = call.status >= 200 && call.status < 300 ? 'text-success' : 'text-danger';
+        row.appendChild(statusCell);
+        
+        const cacheCell = document.createElement('td');
+        cacheCell.textContent = call.cache;
+        cacheCell.className = call.cache === 'HIT' ? 'text-success' : 'text-warning';
+        row.appendChild(cacheCell);
+        
+        tbody.appendChild(row);
+    });
+    
+    logActivity('API calls table updated');
+}
+
+// Function to log activity
+function logActivity(message) {
+    const logContent = document.getElementById('logContent');
+    const timestamp = new Date().toLocaleTimeString();
+    logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+    document.getElementById('systemLog').scrollTop = document.getElementById('systemLog').scrollHeight;
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize chart
+    initializeChart();
+    
+    // Update all metrics
+    updateCacheStats();
+    measureApiPerformance();
+    updateSystemResources();
+    updatePerformanceChart('1h');
+    updateApiCallsTable();
+    
+    // Add event listeners
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        updateCacheStats();
+        measureApiPerformance();
+        updateSystemResources();
+        updateApiCallsTable();
+        
+        const selectedTimeRange = document.querySelector('input[name="timeRange"]:checked').value;
+        updatePerformanceChart(selectedTimeRange);
+        
+        logActivity('Metrics refreshed manually');
+    });
+    
+    document.getElementById('clearCacheBtn').addEventListener('click', clearCache);
+    
+    // Add event listeners for time range buttons
+    document.querySelectorAll('input[name="timeRange"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                updatePerformanceChart(this.value);
+            }
+        });
+    });
+    
+    // Log initial load
+    logActivity('Performance monitoring dashboard loaded');
+    
+    // Set up auto-refresh every 30 seconds
+    setInterval(function() {
+        updateCacheStats();
+        measureApiPerformance();
+        updateSystemResources();
+        
+        const selectedTimeRange = document.querySelector('input[name="timeRange"]:checked').value;
+        updatePerformanceChart(selectedTimeRange);
+        
+        logActivity('Metrics auto-refreshed');
+    }, 30000);
+});
+</script>
+{% endblock %}

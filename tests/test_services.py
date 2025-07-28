@@ -268,7 +268,8 @@ class TestPriceService:
             mock_ticker_instance.history.return_value = mock_hist
             mock_ticker.return_value = mock_ticker_instance
             
-            price = price_service.get_current_price("AAPL")
+            # Use use_stale=False to force API call
+            price = price_service.get_current_price("AAPL", use_stale=False)
             assert price == 155.00
 
     def test_get_price_history(self, price_service, app):
