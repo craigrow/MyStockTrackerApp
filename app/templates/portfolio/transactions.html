@@ -21,22 +21,10 @@
 {% set show_investment_gains = true %}
 {% include 'components/metric_boxes.html' %}
 
-<!-- Portfolio Selection and Filters -->
+<!-- Quick Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <div class="row align-items-center">
-            {% if portfolios|length > 1 %}
-            <div class="col-md-4">
-                <label for="portfolioSelect" class="form-label mb-0"><strong>Portfolio:</strong></label>
-                <select class="form-select" id="portfolioSelect" onchange="changePortfolio()">
-                    {% for portfolio in portfolios %}
-                    <option value="{{ portfolio.id }}" {% if current_portfolio and portfolio.id == current_portfolio.id %}selected{% endif %}>
-                        {{ portfolio.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
             <div class="col-md-4">
                 <label class="form-label mb-0"><strong>Quick Filters:</strong></label>
                 <div class="btn-group w-100" role="group">
@@ -145,14 +133,6 @@
 {% endif %}
 
 <script>
-function changePortfolio() {
-    const select = document.getElementById('portfolioSelect');
-    const portfolioId = select.value;
-    window.location.href = `{{ url_for('portfolio.transactions') }}?portfolio_id=${portfolioId}`;
-}
-
-
-
 function setFilter(filterType) {
     // Update button states
     document.querySelectorAll('.btn-group .btn').forEach(btn => {
