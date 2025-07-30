@@ -18,16 +18,6 @@
                 <h1>Cash Flows Analysis</h1>
                 <p class="text-muted mb-0">Track money in/out and calculate Internal Rate of Return (IRR)</p>
             </div>
-            <div class="dropdown">
-                <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    {{ current_portfolio.name if current_portfolio else 'Select Portfolio' }}
-                </button>
-                <ul class="dropdown-menu">
-                    {% for portfolio in portfolios %}
-                        <li><a class="dropdown-item" href="{{ url_for('cash_flows.cash_flows_page', portfolio_id=portfolio.id) }}">{{ portfolio.name }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
         </div>
     </div>
 </div>
