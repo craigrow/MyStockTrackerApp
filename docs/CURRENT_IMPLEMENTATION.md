@@ -42,7 +42,7 @@ MyStockTrackerApp is a high-performance web application for tracking stock portf
 - **Frontend**: Bootstrap 5 + Chart.js + Vanilla JavaScript
 - **APIs**: Yahoo Finance (yfinance) for real-time stock data
 - **Deployment**: Heroku with automated CI/CD via GitHub Actions
-- **Testing**: pytest with 235+ comprehensive tests
+- **Testing**: pytest with 371 comprehensive tests
 
 ### Application Structure
 ```
@@ -235,7 +235,7 @@ MyStockTrackerApp/
 
 ### CI/CD Pipeline (GitHub Actions)
 1. **Trigger**: Push to devQ or devR branch
-2. **Test Phase**: Run full test suite (235+ tests)
+2. **Test Phase**: Run full test suite (371 tests)
 3. **Deploy Dev**: Automatic deployment to respective dev environment
 4. **UAT Gate**: Manual approval required for production
 5. **Production Deploy**: Auto-merge to main and deploy to production
@@ -250,7 +250,7 @@ MyStockTrackerApp/
 
 ## 🧪 Testing Strategy
 
-### Test Coverage (275+ Tests)
+### Test Coverage (371 Tests)
 - **Unit Tests**: Models, services, utilities
 - **Integration Tests**: End-to-end workflows, API endpoints
 - **Performance Tests**: Caching, optimization, load scenarios
@@ -264,7 +264,7 @@ MyStockTrackerApp/
 - **Edge Cases**: API failures, malformed data, concurrent access
 
 ### Quality Metrics
-- **Test Pass Rate**: 100% (275/275 tests passing)
+- **Test Pass Rate**: 100% (371/371 tests passing)
 - **Coverage**: Comprehensive coverage of all features including cash flows
 - **Performance**: Dashboard loads in 2-3 seconds (90% improvement)
 - **Reliability**: Zero production failures since optimization
@@ -311,8 +311,13 @@ MyStockTrackerApp/
 
 ### Development Process
 1. **Sync with main**: Always start with latest production code
-2. **Feature development**: Implement in dev branch with tests
-3. **Push to dev**: Triggers automated deployment to dev environment
+2. **Primary Workflow - Rapid UAT Development**: 
+   - Create feature branch and implement changes
+   - Deploy to UAT environment (`mystocktrackerapp-testr` or `mystocktrackerapp-testq`)
+   - Iterate and test in production-like environment
+   - Run full test suite locally when satisfied
+   - Push to dev branch to trigger CI/CD pipeline
+3. **Alternative - Direct CI/CD**: For simple, well-understood changes
 4. **UAT testing**: Manual testing in dev environment
 5. **Production approval**: Manual approval gate for production deployment
 6. **Auto-deployment**: Automatic merge to main and production deployment
@@ -324,6 +329,14 @@ MyStockTrackerApp/
 - **Standards**: PEP 8 compliance and consistent formatting
 
 ## 📈 Recent Enhancements
+
+### Documentation Consolidation & Two-Track Development (Latest - July 2025)
+- **Consolidated Agent Onboarding**: Single `AGENT_ONBOARDING.md` entry point for all AI agents
+- **Two-Track Development System**: Rapid UAT environments + Production CI/CD pipeline
+- **Primary Workflow**: Rapid UAT development → iterate → test → CI/CD
+- **Simplified UAT Naming**: `mystocktrackerapp-testr` and `mystocktrackerapp-testq`
+- **Documentation Cleanup**: 11 historical files archived, streamlined structure
+- **Clear Development Guidelines**: When to update documentation, workflow selection
 
 ### Cash Flows Tracking Feature (Latest - DevR)
 - **Cash Flow Analysis**: Complete cash flow tracking with IRR calculations
