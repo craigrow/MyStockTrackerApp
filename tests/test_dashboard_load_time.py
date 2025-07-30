@@ -1,5 +1,6 @@
 import unittest
 import time
+import pytest
 from unittest.mock import patch, MagicMock
 from flask import json
 from app import create_app, db
@@ -173,6 +174,8 @@ class TestDashboardLoadTime(unittest.TestCase):
         # Holdings data should load reasonably quickly
         self.assertLess(load_time, 2.0)  # Should load in under 2 seconds
     
+    @pytest.mark.slow
+    @pytest.mark.performance
     def test_chart_data_load_time(self):
         """Test chart data API endpoint load time"""
         # Mock chart_generator.get_chart_data to return None (force generation)
@@ -198,6 +201,8 @@ class TestDashboardLoadTime(unittest.TestCase):
                     # Chart data API should respond reasonably in test environment
                     self.assertLess(load_time, 10.0)  # More realistic for test environment
     
+    @pytest.mark.slow
+    @pytest.mark.performance
     def test_end_to_end_progressive_load(self):
         """Test end-to-end progressive load time"""
         # Enable progressive loading

@@ -61,8 +61,6 @@ def cash_flows_page():
             sync_status = cash_flow_sync_service.get_sync_status(current_portfolio.id)
     
     return render_template('cash_flows.html',
-                         portfolios=portfolios,
-                         current_portfolio=current_portfolio,
                          cash_flows=cash_flows,
                          portfolio_summary=portfolio_summary,
                          sync_status=sync_status,

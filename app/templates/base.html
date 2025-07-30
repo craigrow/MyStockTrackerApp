@@ -10,33 +10,62 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
+            <a class="navbar-brand" href="#" onclick="navigateWithPortfolio('{{ url_for('main.dashboard') }}')">
                 <i class="fas fa-chart-line me-2"></i>MyStockTracker
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('portfolio.transactions') }}">Transactions</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('portfolio.dividends') }}">Dividends</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('cash_flows.cash_flows_page') }}">
-                            <i class="fas fa-exchange-alt me-1"></i>Cash Flows
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('api.monitoring_dashboard') }}">
-                            <i class="fas fa-tachometer-alt me-1"></i>Monitoring
-                        </a>
-                    </li>
+            
+            <!-- Portfolio Selector in Header -->
+            <div class="navbar-nav me-auto">
+                <div class="dropdown">
+                    <button class="btn btn-outline-light dropdown-toggle" type="button" id="portfolioSelector" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-briefcase me-2"></i>
+                        <span id="currentPortfolioName">{{ current_portfolio.name if current_portfolio else 'Select Portfolio' }}</span>
+                    </button>
+                    <ul class="dropdown-menu" id="portfolioDropdown">
+                        {% if portfolios %}
+                            {% for portfolio in portfolios %}
+                                <li><a class="dropdown-item" href="#" onclick="selectPortfolio('{{ portfolio.id }}', '{{ portfolio.name }}')">{{ portfolio.name }}</a></li>
+                            {% endfor %}
+                            <li><hr class="dropdown-divider"></li>
+                        {% endif %}
+                        <li><a class="dropdown-item" href="{{ url_for('portfolio.create') }}">
+                            <i class="fas fa-plus me-2"></i>Create New Portfolio
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Hamburger Menu -->
+            <div class="dropdown">
+                <button class="btn btn-outline-light" type="button" id="navigationMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#" onclick="navigateWithPortfolio('{{ url_for('main.dashboard') }}')">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="navigateWithPortfolio('{{ url_for('portfolio.transactions') }}')">
+                        <i class="fas fa-exchange-alt me-2"></i>Transactions
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="navigateWithPortfolio('{{ url_for('portfolio.dividends') }}')">
+                        <i class="fas fa-coins me-2"></i>Dividends
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="navigateWithPortfolio('{{ url_for('cash_flows.cash_flows_page') }}')">
+                        <i class="fas fa-chart-line me-2"></i>Cash Flows
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="navigateWithPortfolio('{{ url_for('api.monitoring_dashboard') }}')">
+                        <i class="fas fa-desktop me-2"></i>Monitoring
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.add_transaction') }}">
+                        <i class="fas fa-plus me-2"></i>Add Transaction
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.add_dividend') }}">
+                        <i class="fas fa-plus-circle me-2"></i>Add Dividend
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('portfolio.import_csv') }}">
+                        <i class="fas fa-upload me-2"></i>Import CSV
+                    </a></li>
                 </ul>
             </div>
         </div>
@@ -59,6 +88,78 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Portfolio Persistence JavaScript -->
+    <script>
+        // Portfolio persistence functionality
+        function getSelectedPortfolioId() {
+            // Check URL parameter first, then localStorage, then current portfolio
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlPortfolioId = urlParams.get('portfolio_id');
+            
+            if (urlPortfolioId) {
+                // Save URL portfolio to localStorage for future use
+                localStorage.setItem('selectedPortfolioId', urlPortfolioId);
+                return urlPortfolioId;
+            }
+            
+            return localStorage.getItem('selectedPortfolioId');
+        }
+        
+        function selectPortfolio(portfolioId, portfolioName) {
+            // Save selection to localStorage
+            localStorage.setItem('selectedPortfolioId', portfolioId);
+            localStorage.setItem('selectedPortfolioName', portfolioName);
+            
+            // Update the UI
+            document.getElementById('currentPortfolioName').textContent = portfolioName;
+            
+            // Reload current page with new portfolio
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('portfolio_id', portfolioId);
+            window.location.href = currentUrl.toString();
+        }
+        
+        function navigateWithPortfolio(baseUrl) {
+            const portfolioId = getSelectedPortfolioId();
+            if (portfolioId) {
+                const url = new URL(baseUrl, window.location.origin);
+                url.searchParams.set('portfolio_id', portfolioId);
+                window.location.href = url.toString();
+            } else {
+                window.location.href = baseUrl;
+            }
+        }
+        
+        // Initialize portfolio selector on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedPortfolioId = getSelectedPortfolioId();
+            const selectedPortfolioName = localStorage.getItem('selectedPortfolioName');
+            
+            // Update portfolio selector if we have a saved selection
+            if (selectedPortfolioName) {
+                const currentNameElement = document.getElementById('currentPortfolioName');
+                if (currentNameElement && currentNameElement.textContent === 'Select Portfolio') {
+                    currentNameElement.textContent = selectedPortfolioName;
+                }
+            }
+            
+            // If we have a selected portfolio but current page doesn't have it, redirect
+            if (selectedPortfolioId && !window.location.search.includes('portfolio_id=' + selectedPortfolioId)) {
+                const currentUrl = new URL(window.location);
+                // Only redirect if we're not already on a page that doesn't need portfolio context
+                const needsPortfolio = ['/dashboard', '/portfolio/transactions', '/portfolio/dividends', '/cash-flows'].some(path => 
+                    currentUrl.pathname === path || currentUrl.pathname === '/'
+                );
+                
+                if (needsPortfolio) {
+                    currentUrl.searchParams.set('portfolio_id', selectedPortfolioId);
+                    window.location.replace(currentUrl.toString());
+                }
+            }
+        });
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

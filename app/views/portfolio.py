@@ -35,9 +35,8 @@ def create():
 @portfolio_blueprint.route('/transactions')
 def transactions():
     portfolio_service = PortfolioService()
-    portfolios = portfolio_service.get_all_portfolios()
     
-    # Get current portfolio
+    # Get current portfolio from context processor logic
     portfolio_id = request.args.get('portfolio_id')
     current_portfolio = None
     all_transactions = []
@@ -46,13 +45,14 @@ def transactions():
         current_portfolio = portfolio_service.get_portfolio(portfolio_id)
         if current_portfolio:
             all_transactions = portfolio_service.get_portfolio_transactions(portfolio_id)
-    elif portfolios:
-        current_portfolio = portfolios[0]
-        all_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)
+    else:
+        # Let context processor handle default portfolio selection
+        portfolios = portfolio_service.get_all_portfolios()
+        if portfolios:
+            current_portfolio = portfolios[0]
+            all_transactions = portfolio_service.get_portfolio_transactions(current_portfolio.id)
     
     return render_template('portfolio/transactions.html',
-                         portfolios=portfolios,
-                         current_portfolio=current_portfolio,
                          transactions=all_transactions)
 
 @portfolio_blueprint.route('/dividends')

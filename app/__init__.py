@@ -39,4 +39,8 @@ def create_app(config_name=None):
     app.register_blueprint(cash_flows_blueprint)
     app.register_blueprint(api_blueprint)
     
+    # Register context processors
+    from app.context_processors import portfolio_context
+    app.context_processor(portfolio_context)
+    
     return app

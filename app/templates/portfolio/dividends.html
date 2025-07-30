@@ -14,19 +14,6 @@
     </div>
 </div>
 
-<!-- Portfolio Selection -->
-{% if portfolios|length > 1 %}
-<div class="mb-3">
-    <select class="form-select" onchange="window.location.href='{{ url_for('portfolio.dividends') }}?portfolio_id=' + this.value">
-        {% for portfolio in portfolios %}
-        <option value="{{ portfolio.id }}" {% if current_portfolio and portfolio.id == current_portfolio.id %}selected{% endif %}>
-            {{ portfolio.name }}
-        </option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
-
 <div class="card">
     <div class="card-body">
         {% if current_portfolio %}
