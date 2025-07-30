@@ -2,6 +2,11 @@ from app import db
 from app.models.portfolio import Portfolio, StockTransaction, Dividend, CashBalance
 from datetime import datetime, date, timezone
 from collections import defaultdict
+from app.util.query_cache import query_cache
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class PortfolioService:
@@ -45,10 +50,16 @@ class PortfolioService:
         db.session.commit()
         return dividend
     
+    @query_cache(ttl_seconds=60)  # Cache for 1 minute
     def get_portfolio_transactions(self, portfolio_id):
+        """Get all transactions for a portfolio with caching"""
+        logger.debug(f"Fetching transactions for portfolio {portfolio_id}")
         return StockTransaction.query.filter_by(portfolio_id=portfolio_id).all()
     
+    @query_cache(ttl_seconds=60)  # Cache for 1 minute
     def get_portfolio_dividends(self, portfolio_id):
+        """Get all dividends for a portfolio with caching"""
+        logger.debug(f"Fetching dividends for portfolio {portfolio_id}")
         return Dividend.query.filter_by(portfolio_id=portfolio_id).all()
     
     def calculate_portfolio_value(self, portfolio_id):
@@ -71,7 +82,10 @@ class PortfolioService:
         cash_balance = self.get_cash_balance(portfolio_id)
         return portfolio_value + cash_balance
     
+    @query_cache(ttl_seconds=60)  # Cache for 1 minute
     def get_current_holdings(self, portfolio_id):
+        """Get current holdings for a portfolio with caching"""
+        logger.debug(f"Calculating current holdings for portfolio {portfolio_id}")
         transactions = self.get_portfolio_transactions(portfolio_id)
         holdings = defaultdict(float)
         

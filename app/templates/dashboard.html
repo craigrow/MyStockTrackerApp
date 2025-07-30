@@ -417,6 +417,48 @@ const chart = new Chart(ctx, {
     }
 });
 
+// Start checking for fresh chart data in the background
+{% if current_portfolio %}
+setTimeout(() => {
+    logActivity('Checking for fresh chart data...');
+    
+    // Call the chart data API directly
+    fetch('/api/chart-data/{{ current_portfolio.id }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.dates && data.dates.length > 2) {
+                // We got real chart data, update the chart
+                originalChartData.dates = data.dates || [];
+                originalChartData.portfolio_values = data.portfolio_values || [];
+                originalChartData.voo_values = data.voo_values || [];
+                originalChartData.qqq_values = data.qqq_values || [];
+                
+                // Update the chart
+                chart.data.labels = originalChartData.dates;
+                chart.data.datasets[0].data = originalChartData.portfolio_values;
+                chart.data.datasets[1].data = originalChartData.voo_values;
+                chart.data.datasets[2].data = originalChartData.qqq_values;
+                chart.update();
+                
+                // Apply any saved filters
+                applyChartFilters();
+                
+                logActivity(`Chart updated with ${originalChartData.dates.length} data points`);
+                console.log(`Chart updated with ${originalChartData.dates.length} data points`);
+            } else if (data.placeholder) {
+                logActivity('Still using placeholder data, will try progress monitoring...');
+                // Fall back to progress monitoring
+                checkChartProgress('{{ current_portfolio.id }}');
+            }
+        })
+        .catch(error => {
+            logActivity('Error loading chart data: ' + error.message);
+            // Fall back to progress monitoring
+            checkChartProgress('{{ current_portfolio.id }}');
+        });
+}, 1000); // Wait 1 second before checking
+{% endif %}
+
 // Chart date filtering functionality
 function filterChartByDate(startDate) {
     if (!startDate) {
@@ -439,6 +481,52 @@ function filterChartByDate(startDate) {
     
     // Save preference to localStorage
     localStorage.setItem('chartStartDate', startDate || '');
+}
+
+// Function to check chart generation progress and update chart when ready
+function checkChartProgress(portfolioId) {
+    fetch(`/api/chart-generator-progress/${portfolioId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.status === 'completed' && data.chart_data) {
+                    // Chart data is ready, update the chart
+                    const newChartData = data.chart_data;
+                    
+                    // Update the original chart data
+                    originalChartData.dates = newChartData.dates || [];
+                    originalChartData.portfolio_values = newChartData.portfolio_values || [];
+                    originalChartData.voo_values = newChartData.voo_values || [];
+                    originalChartData.qqq_values = newChartData.qqq_values || [];
+                    
+                    // Update the chart
+                    chart.data.labels = originalChartData.dates;
+                    chart.data.datasets[0].data = originalChartData.portfolio_values;
+                    chart.data.datasets[1].data = originalChartData.voo_values;
+                    chart.data.datasets[2].data = originalChartData.qqq_values;
+                    chart.update();
+                    
+                    // Apply any saved filters
+                    applyChartFilters();
+                    
+                    logActivity(`Chart updated with fresh data: ${originalChartData.dates.length} data points`);
+                    console.log(`Chart updated with ${originalChartData.dates.length} fresh data points`);
+                } else if (data.status === 'generating') {
+                    // Chart data is still generating, check again in a moment
+                    setTimeout(() => checkChartProgress(portfolioId), 3000);
+                    logActivity('Chart data still generating...');
+                } else {
+                    logActivity('Chart generation status: ' + data.status);
+                    // Check again in a moment for other statuses
+                    setTimeout(() => checkChartProgress(portfolioId), 5000);
+                }
+            }
+        })
+        .catch(error => {
+            logActivity('Error checking chart progress: ' + error.message);
+            // Try again after a delay
+            setTimeout(() => checkChartProgress(portfolioId), 10000);
+        });
 }
 
 function resetChartDate() {

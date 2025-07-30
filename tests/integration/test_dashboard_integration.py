@@ -89,12 +89,23 @@ class TestDashboardIntegration:
             # Check API response structure
             api_data = api_response.get_json()
             assert 'success' in api_data
-            assert 'holdings' in api_data
-            assert isinstance(api_data['holdings'], list)
+            assert 'refreshed_count' in api_data
+            assert 'total_tickers' in api_data
+            assert 'timestamp' in api_data
+            
+            # Test the refresh holdings API endpoint (which should still return holdings data)
+            holdings_response = client.get(f'/api/refresh-holdings/{test_portfolio.id}')
+            assert holdings_response.status_code == 200
+            
+            # Check holdings API response structure
+            holdings_data = holdings_response.get_json()
+            assert 'success' in holdings_data
+            assert 'holdings' in holdings_data
+            assert isinstance(holdings_data['holdings'], list)
             
             # Verify that holdings data has the expected structure for updateHoldingsTable
-            if api_data['holdings']:
-                first_holding = api_data['holdings'][0]
+            if holdings_data['holdings']:
+                first_holding = holdings_data['holdings'][0]
                 required_fields = ['ticker', 'shares', 'current_price', 'market_value', 
                                   'gain_loss', 'gain_loss_percentage', 'portfolio_percentage']
                 for field in required_fields:

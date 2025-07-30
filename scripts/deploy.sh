@@ -5,6 +5,15 @@ set -e
 
 echo "🚀 Starting deployment workflow..."
 
+# Check if trying to deploy from main branch directly
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" = "main" ]; then
+  echo "❌ ERROR: Direct deployment from main branch is prohibited!"
+  echo "⚠️  CRITICAL: All production deployments must go through the CI/CD workflow with UAT approval."
+  echo "⚠️  Please push to devQ or devR branch instead and follow the proper approval process."
+  exit 1
+fi
+
 # 1. Run tests in current branch
 echo "📋 Running tests in current branch..."
 RESULT=$(python -m pytest --tb=no -q | tail -1)
@@ -15,7 +24,6 @@ fi
 echo "✅ Tests passed: $RESULT"
 
 # 2. Get current branch
-CURRENT_BRANCH=$(git branch --show-current)
 echo "📍 Current branch: $CURRENT_BRANCH"
 
 # 3. If on devQ, merge to main
@@ -54,4 +62,10 @@ else
   echo "⚠️  Not on devQ branch. Manual deployment only."
   echo "📤 Pushing current branch to GitHub..."
   git push origin $CURRENT_BRANCH
+  
+  # Warning about UAT approval
+  echo ""
+  echo "⚠️  REMINDER: Production deployments require UAT approval through GitHub Actions."
+  echo "⚠️  Direct deployments to production are prohibited."
+  echo "⚠️  Please follow the proper CI/CD workflow with UAT approval."
 fi

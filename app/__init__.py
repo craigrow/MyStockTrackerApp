@@ -1,6 +1,11 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 db = SQLAlchemy()
 
@@ -28,8 +33,10 @@ def create_app(config_name=None):
     from app.views.main import main_blueprint
     from app.views.portfolio import portfolio_blueprint
     from app.views.cash_flows import cash_flows_blueprint
+    from app.views.api import api_blueprint
     app.register_blueprint(main_blueprint)
     app.register_blueprint(portfolio_blueprint)
     app.register_blueprint(cash_flows_blueprint)
+    app.register_blueprint(api_blueprint)
     
     return app
